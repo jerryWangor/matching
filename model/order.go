@@ -1,7 +1,10 @@
 package model
 
-type order struct {
-	action string
-	symbol string
-	orderId string
+import "github.com/shopspring/decimal"
+
+type Order struct {
+	Action string
+	Symbol string
+	OrderId string
+	Price decimal.Decimal
 }

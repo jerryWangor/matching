@@ -1,10 +1,11 @@
-package handler
+package utils
 
 import (
 	"bufio"
 	"fmt"
 	"log"
 	"matching/config"
+	"matching/utils/common"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -31,29 +32,29 @@ type FileLogger struct {
 	fileName       string         // 日志文件名（无需包含日期和扩展名）
 	prefix         string         // 日志消息的前缀
 	//logLevel       LEVEL          // 日志等级
-	lfDebug        *os.File       // 日志文件
-	lfInfo         *os.File       // 日志文件
-	lfWarn         *os.File       // 日志文件
-	lfError        *os.File       // 日志文件
-	bufDebug       *bufio.Writer    // 日志缓冲
-	bufInfo        *bufio.Writer    // 日志缓冲
-	bufWarn        *bufio.Writer    // 日志缓冲
-	bufError       *bufio.Writer    // 日志缓冲
-	date           *time.Time     // 日志当前日期
-	mu             *sync.RWMutex  // 读写锁，在进行日志分割和日志写入时需要锁住
-	logChan        chan LogContent// 日志消息通道，以实现异步写日志
-	stopTickerChan chan bool      // 停止定时器的通道
+	lfDebug        *os.File        // 日志文件
+	lfInfo         *os.File        // 日志文件
+	lfWarn         *os.File        // 日志文件
+	lfError        *os.File        // 日志文件
+	bufDebug       *bufio.Writer   // 日志缓冲
+	bufInfo        *bufio.Writer   // 日志缓冲
+	bufWarn        *bufio.Writer   // 日志缓冲
+	bufError       *bufio.Writer   // 日志缓冲
+	date           *time.Time      // 日志当前日期
+	mu             *sync.RWMutex   // 读写锁，在进行日志分割和日志写入时需要锁住
+	logChan        chan LogContent // 日志消息通道，以实现异步写日志
+	stopTickerChan chan bool       // 停止定时器的通道
 }
 
 type LogContent struct {
-	level LEVEL
+	level   LEVEL
 	content string
 }
 
 var fileLogger *FileLogger
 
 // 初始化函数
-func Init() error {
+func InitLog() error {
 
 	// 判断日志开关
 	if !config.LogSwitch {
@@ -139,65 +140,68 @@ func (f *FileLogger) isExistOrCreateFileDir() {
 func (f *FileLogger) isExistOrCreateFile() error {
 
 	var level string
-	//var prefix string
 	for v := range LevelArr {
 		switch v {
 		case 0:
 			level = "debug"
-			//prefix = "[Debug]"
 			// 对每个文件进行创建读取
 			filePath := filepath.Join(f.fileDir, level, f.fileName)
 			file := filePath + "-" + f.date.Format(DateFormat) + ".log"
-			// 这里文件不需要判断了，直接用open自动创建模式
-			lfDebug, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-			if err != nil {
-				log.Println("文件创建失败：", file)
-				return err
+			// 这里判断文件是否存在，不存在并且文件句柄存在就新建文件替换文件句柄
+			if _, err := os.Stat(file); os.IsNotExist(err) || f.lfDebug == nil {
+				lfDebug, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, os.ModePerm)
+				if err != nil {
+					log.Println("文件创建失败：", file)
+					return err
+				}
+				f.lfDebug = lfDebug
+				f.bufDebug = bufio.NewWriter(f.lfDebug)
 			}
-			f.lfDebug = lfDebug
-			f.bufDebug = bufio.NewWriter(lfDebug)
 		case 1:
 			level = "info"
-			//prefix = "[Info]"
 			// 对每个文件进行创建读取
 			filePath := filepath.Join(f.fileDir, level, f.fileName)
 			file := filePath + "-" + f.date.Format(DateFormat) + ".log"
-			// 这里文件不需要判断了，直接用open自动创建模式
-			lfInfo, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-			if err != nil {
-				log.Println("文件创建失败：", file)
-				return err
+			// 这里判断文件是否存在，不存在并且文件句柄存在就新建文件替换文件句柄
+			if _, err := os.Stat(file); os.IsNotExist(err) || f.lfInfo == nil {
+				lfInfo, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+				if err != nil {
+					log.Println("文件创建失败：", file)
+					return err
+				}
+				f.lfInfo = lfInfo
+				f.bufInfo = bufio.NewWriter(lfInfo)
 			}
-			f.lfInfo = lfInfo
-			f.bufInfo = bufio.NewWriter(lfInfo)
 		case 2:
 			level = "warn"
-			//prefix = "[Warn]"
 			// 对每个文件进行创建读取
 			filePath := filepath.Join(f.fileDir, level, f.fileName)
 			file := filePath + "-" + f.date.Format(DateFormat) + ".log"
-			// 这里文件不需要判断了，直接用open自动创建模式
-			lfWarn, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-			if err != nil {
-				log.Println("文件创建失败：", file)
-				return err
+			// 这里判断文件是否存在，不存在并且文件句柄存在就新建文件替换文件句柄
+			if _, err := os.Stat(file); os.IsNotExist(err) || f.lfWarn == nil {
+				lfWarn, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+				if err != nil {
+					log.Println("文件创建失败：", file)
+					return err
+				}
+				f.lfWarn = lfWarn
+				f.bufWarn = bufio.NewWriter(lfWarn)
 			}
-			f.lfWarn = lfWarn
-			f.bufWarn = bufio.NewWriter(lfWarn)
 		case 3:
 			level = "error"
-			//prefix = "[Error]"
 			// 对每个文件进行创建读取
 			filePath := filepath.Join(f.fileDir, level, f.fileName)
 			file := filePath + "-" + f.date.Format(DateFormat) + ".log"
-			// 这里文件不需要判断了，直接用open自动创建模式
-			lfError, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-			if err != nil {
-				log.Println("文件创建失败：", file)
-				return err
+			// 这里判断文件是否存在，不存在并且文件句柄存在就新建文件替换文件句柄
+			if _, err := os.Stat(file); os.IsNotExist(err) || f.lfError == nil {
+				lfError, err := os.OpenFile(file, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+				if err != nil {
+					log.Println("文件创建失败：", file)
+					return err
+				}
+				f.lfError = lfError
+				f.bufError = bufio.NewWriter(lfError)
 			}
-			f.lfError = lfError
-			f.bufError = bufio.NewWriter(lfError)
 		}
 	}
 	return nil
@@ -213,18 +217,23 @@ func (f *FileLogger) logWriter() {
 		}
 
 		f.mu.RLock()
+		var fbuf *bufio.Writer
 		// 根据日志类型判断写入哪个文件
 		switch content.level {
 		case DEBUG:
-			//f.lfDebug.Write([]byte(content.content))
-			f.bufDebug.WriteString(content.content)
+			fbuf = f.bufDebug
 		case INFO:
-			//f.lgInfo.Output(2, content.content)
+			fbuf = f.bufInfo
 		case WARN:
-			//f.lgWarn.Output(2, content.content)
+			fbuf = f.bufWarn
 		case ERROR:
-			//f.lgError.Output(2, content.content)
+			fbuf = f.bufError
 		}
+
+		fbuf.WriteString(common.GetNowTime() + "：")
+		fbuf.WriteString(content.content)
+		fbuf.WriteString("\n")
+		fbuf.Flush() // flush把缓存中的内容写到文件中
 
 		f.mu.RUnlock()
 	}
@@ -301,5 +310,21 @@ func LogInfo(format string, v ...interface{}) {
 	var logContent LogContent
 	logContent.level = 1
 	logContent.content = fmt.Sprintf("[%v:%v]", filepath.Base(file), line) + fmt.Sprintf("[Info]"+format, v...)
+	fileLogger.logChan <- logContent
+}
+
+func LogWarn(format string, v ...interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	var logContent LogContent
+	logContent.level = 2
+	logContent.content = fmt.Sprintf("[%v:%v]", filepath.Base(file), line) + fmt.Sprintf("[Warn]"+format, v...)
+	fileLogger.logChan <- logContent
+}
+
+func LogError(format string, v ...interface{}) {
+	_, file, line, _ := runtime.Caller(1)
+	var logContent LogContent
+	logContent.level = 3
+	logContent.content = fmt.Sprintf("[%v:%v]", filepath.Base(file), line) + fmt.Sprintf("[Error]"+format, v...)
 	fileLogger.logChan <- logContent
 }
