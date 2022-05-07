@@ -13,6 +13,6 @@ type HttpResult struct {
 
 func (r *HttpResult) Result() *HttpResult {
 	return &HttpResult{
-		Code:
+		//Code:
 	}
 }
