@@ -1,3 +1,62 @@
 package cache
 
-// 缓存操作，redis等等
+import (
+	"github.com/shopspring/decimal"
+	cache "matching/utils/redis"
+)
+
+// 缓存操作
+// 交易标函数
+func SaveSymbol(symbol string) {
+	cache.SaveSymbol(symbol)
+}
+
+func RemoveSymbol(symbol string) {
+	cache.RemoveSymbol(symbol)
+}
+
+func HasSymbol(symbol string) bool {
+	return cache.HasSymbol(symbol)
+}
+
+func GetSymbols() []string {
+	return cache.GetSymbols()
+}
+
+// 价格函数
+func SavePrice(symbol string, price decimal.Decimal) {
+	cache.SavePrice(symbol, price)
+}
+
+func GetPrice(symbol string) decimal.Decimal {
+	return cache.GetPrice(symbol)
+}
+
+func RemovePrice(symbol string) {
+	cache.RemovePrice(symbol)
+}
+
+// 订单函数
+func SaveOrder(order map[string]interface{}) {
+
+}
+
+func GetOrder() {
+
+}
+
+func UpdateOrder() {
+
+}
+
+func RemoveOrder() {
+
+}
+
+func OrderExist() {
+
+}
+
+func GetOrderIdsWithAction(symbol string) []string {
+	return cache.GetOrderIdsWithAction(symbol)
+}

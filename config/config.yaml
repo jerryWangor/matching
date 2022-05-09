@@ -1,10 +1,9 @@
 # 默认配置文件
 server:
   port: :9466  #撮合引擎程序启动监听的端口
-log:                 #输出日志配置
-  fileDir: logs      #输出日志存放的目录
-  fileName: matching #日志文件名，会按日期分割
-  prefix:            #日志消息前缀
-  level: debug       #日志级别，由低到高为：debug、info、warn、error
 redis:
-  addr: 127.0.0.1:6379  #Redis地址
+  addr: 42.193.50.38:90001  #Redis地址
+  password: jerry123
+http:
+  sign: a4fdc2af6949b3945b8e556d9fbce343
+  timeout: 30000000

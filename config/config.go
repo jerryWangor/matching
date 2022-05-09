@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	LogSwitch bool = true
+	LogSwitch bool = true // 日志开关
 )
 
 // 配置的一些初始化

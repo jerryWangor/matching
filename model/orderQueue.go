@@ -2,7 +2,7 @@ package model
 
 import (
 	"container/list"
-	"matching/enum"
+	"matching/utils/enum"
 )
 
 /**

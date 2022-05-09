@@ -1,4 +1,4 @@
-package utils
+package linklist
 
 import "fmt"
 
@@ -6,7 +6,7 @@ type Object interface {}
 
 type Node struct {
 	Data Object // 定义数据域
-	Next *Node // 定义地址域(指向下一个表的地址)
+	Next *Node  // 定义地址域(指向下一个表的地址)
 }
 
 type SingleLinkList struct {

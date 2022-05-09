@@ -1,4 +1,4 @@
-package utils
+package redis
 
 import (
 	"fmt"
@@ -20,9 +20,10 @@ func InitRedis() {
 	}()
 
 	addr := viper.GetString("redis.addr")
+	password := viper.GetString("redis.password")
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     addr,
-		Password: "", // no password set
+		Password: password, // no password set
 		DB:       0,  // use default DB
 	})
 
@@ -34,7 +35,7 @@ func InitRedis() {
 	}
 }
 
-
+// 缓存操作，redis等等
 // 交易标函数
 func SaveSymbol(symbol string) {
 	key := "matching:symbols"
@@ -44,6 +45,18 @@ func SaveSymbol(symbol string) {
 func RemoveSymbol(symbol string) {
 	key := "matching:symbols"
 	RedisClient.SRem(key, symbol)
+}
+
+func HasSymbol(symbol string) bool {
+	key := "matching:symbols"
+	symbols := RedisClient.SMembers(key).Val()
+	for _, v := range symbols {
+		if v == symbol {
+			return true
+			break
+		}
+	}
+	return false
 }
 
 func GetSymbols() []string {
@@ -76,12 +89,13 @@ func RemovePrice(symbol string) {
 func SaveOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	timestamp := order["timestamp"].(float64)
+	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
 	action := order["action"].(string)
 
 	key := "matching:order:" + symbol + ":" + orderId + ":" + action
 	RedisClient.HMSet(key, order)
 
+	// Zset(sorted_set类型) 创建以timestamp排序的数据
 	key = "matching:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
@@ -111,6 +125,8 @@ func GetOrderIdsWithAction(symbol string) []string {
 	return RedisClient.ZRange(key, 0, -1).Val()
 }
 
+
+// 队列操作
 /**
 队列操作
 其中，matching:cancelresults:{symbol} 就是撤单结果的 MQ 所属的 Key，
@@ -135,4 +151,3 @@ func SendTrade(symbol string, trade map[string]interface{}) {
 	}
 	RedisClient.XAdd(a)
 }
-

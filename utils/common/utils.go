@@ -14,6 +14,11 @@ func GetNowTime() string {
 	return time.Now().Format("2006-01-02 15:04:05")
 }
 
+// 获取当前时间-时间戳
+func GetNowTimeStamp() int64 {
+	return time.Now().Unix()
+}
+
 // 获取当前日期
 func GetNowDate() string {
 	return time.Now().Format("2006-01-02")
@@ -26,8 +31,11 @@ func GetWheres(where []string) string {
 }
 
 // md5加密
-func GetMd5String(b []byte) string {
-	return fmt.Sprintf("%x", md5.Sum(b))
+func GetMd5String(str string) string {
+	data := []byte(str)
+	has := md5.Sum(data)
+	md5str := fmt.Sprintf("%x", has)
+	return md5str
 }
 
 // int转字节
