@@ -1,6 +1,6 @@
 # 默认配置文件
 server:
-  port: :9466  #撮合引擎程序启动监听的端口
+  port: :8080  #撮合引擎程序启动监听的端口
 redis:
   addr: 42.193.50.38:90001  #Redis地址
   password: jerry123

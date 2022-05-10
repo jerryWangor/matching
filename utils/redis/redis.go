@@ -6,6 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"log"
+	"matching/model"
 )
 
 var RedisClient *redis.Client
@@ -104,8 +105,8 @@ func SaveOrder(order map[string]interface{}) {
 	RedisClient.ZAdd(key, *z)
 }
 
-func GetOrder() {
-
+func GetOrder(symbol string, orderid string) model.Order {
+	return model.Order{}
 }
 
 func UpdateOrder() {
@@ -116,7 +117,7 @@ func RemoveOrder() {
 
 }
 
-func OrderExist() {
+func OrderExist(symbol string, orderid string, action string) bool {
 
 }
 

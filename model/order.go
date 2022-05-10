@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"github.com/shopspring/decimal"
 	"matching/utils"
+	"matching/utils/enum"
 )
 
 type Order struct {
 	Accid int `json:"accid"`
-	Action string `json:"action"`
+	Action enum.OrderAction `json:"action"`
 	Symbol string `json:"symbol"`
 	OrderId string `json:"orderid"`
 	Amount int `json:"amount"`
@@ -22,4 +23,9 @@ func (o Order) toJson() string {
 		utils.LogError("json marshal error", err, o.OrderId)
 	}
 	return string(data)
+}
+
+// 把缓存中的订单转换成Order结构
+func (o Order) FromMap(omap Order) {
+
 }

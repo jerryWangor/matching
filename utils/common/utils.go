@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"matching/utils"
 	"strings"
 	"time"
 )
@@ -52,4 +54,10 @@ func BytesToInt(bys []byte) int {
 	var data int64
 	binary.Read(bytebuff, binary.BigEndian, &data)
 	return int(data)
+}
+
+// 返回error类型错误，并记录error级别日志
+func Errors(str string) error {
+	utils.LogError(str)
+	return errors.New(str)
 }
