@@ -42,7 +42,7 @@ func SaveOrder(order map[string]model.Order) {
 
 }
 
-func GetOrder(symbol string, orderid string) model.Order {
+func GetOrder(symbol string, orderid string) map[string]interface{} {
 	return cache.GetOrder(symbol, orderid)
 }
 

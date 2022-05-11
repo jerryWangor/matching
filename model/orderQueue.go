@@ -50,7 +50,7 @@ func (q *orderQueue) getDepthPrice(depth int) (string, int) {
 		if t != nil {
 			p = t
 		} else {
-			break;
+			break
 		}
 	}
 	o := p.Value.(*list.List).Front().Value.(*Order)

@@ -1,6 +1,6 @@
 package enum
 
-// SortDirection 圣墟=1 倒序=2
+// SortDirection 升序=1 倒序=2
 type SortDirection int
 
 const (
