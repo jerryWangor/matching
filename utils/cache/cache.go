@@ -3,6 +3,7 @@ package cache
 import (
 	"github.com/shopspring/decimal"
 	"matching/model"
+	"matching/utils"
 	cache "matching/utils/redis"
 )
 
@@ -38,8 +39,12 @@ func RemovePrice(symbol string) {
 }
 
 // 订单函数
-func SaveOrder(order map[string]model.Order) {
-
+func SaveOrder(order model.Order) {
+	maporder, err := order.ToMap()
+	if err != nil {
+		utils.LogError("订单保存失败")
+	}
+	cache.SaveOrder(maporder)
 }
 
 func GetOrder(symbol string, orderid string) map[string]interface{} {

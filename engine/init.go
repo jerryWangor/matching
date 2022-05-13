@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"matching/model"
 	"matching/utils"
-	cache "matching/utils/redis"
+	"matching/utils/cache"
 )
 
 var OrderChanMap map[string]chan model.Order
@@ -32,8 +32,5 @@ func Init() {
 			OrderChanMap[order.Symbol] <- order
 		}
 	}
-
-	// 从redis中查询所有定序订单，并生成订单委托账本
-
 
 }

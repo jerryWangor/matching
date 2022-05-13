@@ -17,9 +17,10 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 		return common.Errors(fmt.Sprintf("%s 引擎重复开启，请先关闭已开启的引擎", symbol))
 	}
 
-	OrderChanMap[symbol] = make(chan model.Order, 1000)
+	OrderChanMap[symbol] = make(chan model.Order, 100)
 	go Run(symbol, price)
 
+	utils.LogInfo("cache symbol")
 	cache.SaveSymbol(symbol)
 	cache.SavePrice(symbol, price)
 
@@ -35,6 +36,7 @@ func Run(symbol string, price decimal.Decimal) {
 
 	utils.LogInfo("engine %s is running", symbol)
 	for {
+		// 监听订单通道进行操作
 		order, ok := <-OrderChanMap[symbol]
 		if !ok {
 			// 如果通道关闭就关闭引擎
@@ -92,6 +94,7 @@ LOOP:
 		}
 	}
 }
+
 
 func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
 

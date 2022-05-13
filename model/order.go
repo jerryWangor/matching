@@ -17,8 +17,8 @@ type Order struct {
 	Symbol string `json:"symbol"`
 	OrderId string `json:"orderid"`
 	Type enum.OrderType `json:"type"`
-	Side enum.OrderSide `json:"type"`
-	Amount int `json:"amount"`
+	Side enum.OrderSide `json:"side"`
+	Amount decimal.Decimal `json:"amount"`
 	Price decimal.Decimal `json:"price"`
 	Timestamp int64 `json:"timestamp"`
 }

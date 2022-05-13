@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"matching/engine"
-	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/code"
 	"matching/utils/redis"
@@ -11,7 +10,6 @@ import (
 )
 
 type OpenMatch struct {
-	model.TimeSign
 	Symbol string `form:"symbol" binding:"require"`
 }
 

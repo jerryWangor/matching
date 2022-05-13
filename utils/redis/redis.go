@@ -105,6 +105,7 @@ func SaveOrder(order map[string]interface{}) {
 }
 
 func GetOrder(symbol string, orderid string) map[string]interface{} {
+	// 从redis中查询订单
 	return make(map[string]interface{})
 }
 

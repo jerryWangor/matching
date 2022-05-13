@@ -3,14 +3,12 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"matching/engine"
-	"matching/model"
 	"matching/utils/code"
 	"matching/utils/redis"
 	"net/http"
 )
 
 type CloseMatch struct {
-	model.TimeSign
 	Symbol string `form:"symbol" binding:"require"`
 }
 
