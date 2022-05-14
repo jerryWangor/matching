@@ -13,23 +13,23 @@ import (
 func AuthSign() gin.HandlerFunc {
 	return func (c *gin.Context) {
 
-		var timesign model.TimeSign
+		var timeSign model.TimeSign
 		// 如果是 `GET` 请求，只使用 `Form` 绑定引擎（`query`）。
 		// 如果是 `POST` 请求，首先检查 `content-type` 是否为 `JSON` 或 `XML`，
 		// 然后再使用 `Form`（`form-data`）。
-		if c.ShouldBind(&timesign) != nil {
+		if c.ShouldBind(&timeSign) != nil {
 			returnJson(c, code.HTTP_PARAMS_NOTEXISTS, "参数缺失")
 			return
 		}
 		// 判断时间过期没
-		nowtime := common.GetNowTimeStamp()
-		if timesign.Time + viper.GetInt64("http.timeout") < nowtime {
+		nowTime := common.GetNowTimeStamp()
+		if timeSign.Time + viper.GetInt64("http.timeout") < nowTime {
 			returnJson(c, code.HTTP_PARAMS_ERROR, "请求超时")
 			return
 		}
 		// 判断sign
-		lsign := common.GetMd5String(strconv.FormatInt(timesign.Time, 10) + viper.GetString("http.sign"))
-		if lsign != timesign.Sign {
+		sign := common.GetMd5String(strconv.FormatInt(timeSign.Time, 10) + viper.GetString("http.sign"))
+		if sign != timeSign.Sign {
 			returnJson(c, code.HTTP_PARAMS_ERROR, "验证失败")
 			return
 		}

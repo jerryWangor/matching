@@ -5,7 +5,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
-	"log"
+	"matching/utils"
 )
 
 var RedisClient *redis.Client
@@ -31,12 +31,10 @@ func InitRedis() {
 	if err != nil {
 		panic(err)
 	} else {
-		log.Printf("Connected to redis: %s", addr)
+		utils.LogInfo(fmt.Sprintf("Connected to redis: %s", addr))
 	}
 }
 
-// 缓存操作，redis等等
-// 交易标函数
 func SaveSymbol(symbol string) {
 	key := "matching:symbols"
 	RedisClient.SAdd(key, symbol)
@@ -64,7 +62,6 @@ func GetSymbols() []string {
 	return RedisClient.SMembers(key).Val()
 }
 
-// 价格函数
 func SavePrice(symbol string, price decimal.Decimal) {
 	key := "matching:price:" + symbol
 	RedisClient.Set(key, price.String(), 0)
@@ -85,14 +82,15 @@ func RemovePrice(symbol string) {
 	RedisClient.Del(key)
 }
 
-// 订单函数
+// SaveOrder 保存订单
 func SaveOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
 	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
 	action := order["action"].(string)
 
-	key := "matching:order:" + symbol + ":" + orderId + ":" + action
+	//key := "matching:order:" + symbol + ":" + orderId + ":" + action
+	key := "matching:order:" + symbol + ":" + orderId
 	RedisClient.HMSet(key, order)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
@@ -104,32 +102,70 @@ func SaveOrder(order map[string]interface{}) {
 	RedisClient.ZAdd(key, *z)
 }
 
-func GetOrder(symbol string, orderid string) map[string]interface{} {
+func GetOrder(symbol string, orderId string) map[string]interface{} {
 	// 从redis中查询订单
-	return make(map[string]interface{})
+	var maporder map[string]interface{}
+	maporder = make(map[string]interface{})
+	key := "matching:order:" + symbol + ":" + orderId
+	result := RedisClient.HMGet(key)
+	for _, v := range result.Val() {
+		utils.LogDebug(fmt.Sprintf("getorder 的值是：%s", v))
+	}
+	return maporder
 }
 
-func UpdateOrder() {
+func UpdateOrder(order map[string]interface{}) {
+	symbol := order["symbol"].(string)
+	orderId := order["orderId"].(string)
+	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
+	action := order["action"].(string)
+	key := "matching:order:" + symbol + ":" + orderId
+	RedisClient.HMSet(key, order)
 
+	// Zset(sorted_set类型) 创建以timestamp排序的数据
+	key = "matching:orderids:" + symbol
+	z := &redis.Z{
+		Score:  timestamp,
+		Member: orderId + ":" + action,
+	}
+	RedisClient.ZAdd(key, *z)
 }
 
-func RemoveOrder() {
+func RemoveOrder(order map[string]interface{}) {
+	symbol := order["symbol"].(string)
+	orderId := order["orderId"].(string)
+	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
+	action := order["action"].(string)
+	key := "matching:order:" + symbol + ":" + orderId
+	RedisClient.HDel(key)
 
+	// Zset(sorted_set类型) 创建以timestamp排序的数据
+	key = "matching:orderids:" + symbol
+	z := &redis.Z{
+		Score:  timestamp,
+		Member: orderId + ":" + action,
+	}
+
+	RedisClient.ZRem(key, *z)
 }
 
-func OrderExist(symbol string, orderid string, action string) bool {
+func OrderExist(symbol string, orderId string) bool {
+	key := "matching:order:" + symbol + ":" + orderId
+	result := RedisClient.HMGet(key)
+	if result != nil {
+		return true
+	}
 	return false
 }
 
-func GetOrderIdsWithAction(symbol string) []string {
+func GetOrderIdsWithSymbol(symbol string) []string {
 	key := "matching:orderids:" + symbol
 	return RedisClient.ZRange(key, 0, -1).Val()
 }
 
 
-// 队列操作
+// SendCancelResult 队列操作
 /**
-队列操作
 其中，matching:cancelresults:{symbol} 就是撤单结果的 MQ 所属的 Key，
 matching:trades:{symbol} 则是成交记录的 MQ 所属的 Key。
 可以看到，我们还根据不同 symbol 分不同 MQ，这样还方便下游服务可以根据需要实现分布式订阅不同 symbol 的 MQ。

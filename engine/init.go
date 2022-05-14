@@ -9,7 +9,7 @@ import (
 
 var OrderChanMap map[string]chan model.Order
 
-// 初始化，从redis中恢复一些东西
+// Init 初始化，从redis中恢复一些东西
 func Init() {
 
 	// 定义订单map通道
@@ -24,7 +24,7 @@ func Init() {
 			continue
 		}
 
-		orderIds := cache.GetOrderIdsWithAction(symbol)
+		orderIds := cache.GetOrderIdsWithSymbol(symbol)
 		for _, orderId := range orderIds {
 			mapOrder := cache.GetOrder(symbol, orderId)
 			order := model.Order{}

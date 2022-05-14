@@ -1,25 +1,28 @@
 package model
 
 import (
-	"encoding/json"
-	"matching/utils"
+	"fmt"
+	"github.com/mitchellh/mapstructure"
+	"github.com/shopspring/decimal"
+	"matching/utils/common"
 	"matching/utils/enum"
 )
 
-// 交易记录
+// Trade 交易记录
 type Trade struct {
-	MakerId string `json:"makerid"`
-	TakerId string `json:"takerid"`
-	TakerSide *enum.OrderSide `json:"takerside"`
-	Amount int `json:"amount"`
-	Price string `json:"price"`
-	Timestamp string `json:"timestamp"`
+	MakerId string `json:"makerId" comment:"挂单的订单ID"`
+	TakerId string `json:"takerId" comment:"吃单的订单ID"`
+	TakerSide enum.OrderSide `json:"takerSide" comment:"买还是卖"`
+	Amount decimal.Decimal `json:"amount" comment:"交易成功的数量"`
+	Price decimal.Decimal `json:"price" comment:"当前交易价格"`
+	Timestamp int64 `json:"timestamp" comment:"交易时间"`
 }
 
-func (o Trade) ToJson() string {
-	data, err := json.Marshal(o)
-	if err != nil {
-		utils.LogError("json marshal error", err, o.MakerId, o.TakerId)
+// FromMap Map转结构体
+func (o *Trade) FromMap(tradeMap map[string]interface{}) (*Trade, error) {
+	if err := mapstructure.Decode(tradeMap, &o); err != nil {
+		return o, common.Errors(fmt.Sprintf("map decode error"))
 	}
-	return string(data)
+
+	return o, nil
 }

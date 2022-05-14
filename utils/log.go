@@ -53,7 +53,7 @@ type LogContent struct {
 
 var fileLogger *FileLogger
 
-// 初始化函数
+// InitLog 初始化函数
 func InitLog() error {
 
 	// 判断日志开关
@@ -94,7 +94,6 @@ func InitLog() error {
 	return nil
 }
 
-// 关闭日志
 func CloseLogger() {
 	if fileLogger != nil {
 		fileLogger.stopTickerChan <- true

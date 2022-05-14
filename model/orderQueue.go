@@ -42,41 +42,78 @@ type orderQueue struct {
 	elementMap map[string]*list.List // 主要是用来查询top5，用price作为价格更方便
 }
 
+// 初始化函数
 func (q *orderQueue) init(sortBy enum.SortDirection) {
 	q.sortBy = sortBy
 	q.parentList = list.New()
 	q.elementMap = make(map[string]*list.List)
 }
 
+// 把订单插入到链表中
 func (q *orderQueue) addOrder(order *Order) {
-	// 插入链表，注意要根据排序来
-	if q.sortBy == enum.SortAsc {
-		q.parentList.PushBack(order)
-	} else {
 
+	// 如果队列长度是0，就直接放到第一个
+	if q.parentList.Len() == 0 {
+		q.parentList.PushFront(order)
+		return
 	}
+
+	// 买单队列是按照价格降序的，当前价格的订单<=那条订单，就插入到那条订单的后面
+	if q.sortBy == enum.SortDesc {
+		for e := q.parentList.Back(); e != nil; e = e.Prev() {
+			price := e.Value.(*Order).Price
+			if order.Price.LessThanOrEqual(price) {
+				q.parentList.InsertAfter(order, e)
+			} else {
+				q.parentList.InsertBefore(order, e)
+			}
+		}
+	} else {
+		// 卖单队列是按照价格升序的，找到<=当前价格的订单，排到前面
+		for e := q.parentList.Back(); e != nil; e = e.Prev() {
+			price := e.Value.(*Order).Price
+			if order.Price.GreaterThanOrEqual(price) {
+				q.parentList.InsertAfter(order, e)
+			} else {
+				q.parentList.InsertBefore(order, e)
+			}
+		}
+	}
+
 	// 插入价格map
 	price := order.Price.String()
 	if _, ok := q.elementMap[price]; !ok {
 		q.elementMap[price] = list.New()
 	}
-	q.elementMap[order.Price.String()].PushBack(order)
+	q.elementMap[price].PushBack(order)
 }
 
 // 从委托账本中查询头部订单
 func (q *orderQueue) getHeadOrder() *Order {
-	return q.parentList.Front().Value.(*Order)
+	front := q.parentList.Front()
+	if front != nil {
+		// 这里先强制转换，后面改成断言
+		return q.parentList.Front().Value.(*Order)
+	}
+	return nil
 }
 
-func (q *orderQueue) popHeadOrder() {
-
+// 删除头部订单
+func (q *orderQueue) popHeadOrder() *Order {
+	front := q.parentList.Front()
+	if front != nil {
+		// 从交易委托账本中删除
+		return q.parentList.Remove(front).(*Order)
+	}
+	return nil
 }
 
-func (q *orderQueue) removeOrder(order Order) {
-
+// 删除指定订单
+func (q *orderQueue) removeOrder(e *list.Element) {
+	q.parentList.Remove(e)
 }
 
-
+// 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。
 func (q *orderQueue) getDepthPrice(depth int) (string, int) {
 	if q.parentList.Len() == 0 {
 		return "", 0

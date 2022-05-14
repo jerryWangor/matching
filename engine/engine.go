@@ -5,12 +5,14 @@ import (
 	"github.com/shopspring/decimal"
 	"matching/model"
 	"matching/utils"
+	"matching/utils/cache"
 	"matching/utils/common"
 	"matching/utils/enum"
-	cache "matching/utils/redis"
+	"matching/utils/mq"
 	"time"
 )
 
+// NewEngine
 // 开启一个新的引擎
 func NewEngine(symbol string, price decimal.Decimal) error {
 	if OrderChanMap[symbol] != nil {
@@ -27,6 +29,7 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 	return nil
 }
 
+// Run
 // 引擎启动入口（协程处理）
 func Run(symbol string, price decimal.Decimal) {
 	lastTradePrice := price
@@ -45,7 +48,7 @@ func Run(symbol string, price decimal.Decimal) {
 			cache.RemoveSymbol(symbol)
 			return
 		}
-		utils.LogInfo("engine %s receive an order: %s", symbol, order.ToJson())
+		utils.LogInfo("engine %s receive an order: %s", symbol, common.ToJson(order))
 		switch order.Action {
 		case enum.ActionCreate:
 			dealCreate(&order, book, &lastTradePrice)
@@ -55,6 +58,7 @@ func Run(symbol string, price decimal.Decimal) {
 	}
 }
 
+// 挂单处理
 func dealCreate(order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
 	switch order.Type {
 	case enum.TypeLimit:
@@ -72,6 +76,7 @@ func dealCreate(order *model.Order, book *model.OrderBook, lastTradePrice *decim
 	}
 }
 
+// 普通限价处理
 func dealLimit(order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
 	switch order.Side {
 	case enum.SideBuy:
@@ -81,12 +86,14 @@ func dealLimit(order *model.Order, book *model.OrderBook, lastTradePrice *decima
 	}
 }
 
+// 买单处理
 func dealBuyLimit(order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
 LOOP:
 	headOrder := book.GetHeadSellOrder()
+	// 买单价格小于卖单价格，不能成交
 	if headOrder == nil || order.Price.LessThan(headOrder.Price) {
 		book.AddBuyOrder(order)
-		utils.LogInfo("engine %s, a order has added to the orderbook: %s", order.Symbol, order.ToJson())
+		utils.LogInfo("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
 	} else {
 		matchTrade(headOrder, order, book, lastTradePrice)
 		if order.Amount.IsPositive() {
@@ -95,51 +102,107 @@ LOOP:
 	}
 }
 
-
-func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
-
-}
-
+// 卖单处理
 func dealSellLimit(order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
-
+LOOP:
+	headOrder := book.GetHeadBuyOrder()
+	// 卖单价格大于买单价格，不能成交
+	if headOrder == nil || order.Price.GreaterThan(headOrder.Price) {
+		book.AddSellOrder(order)
+		utils.LogInfo("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
+	} else {
+		matchTrade(headOrder, order, book, lastTradePrice)
+		if order.Amount.IsPositive() {
+			goto LOOP
+		}
+	}
 }
 
+// 撮合订单
+func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
+	// 将头部订单和当前订单进行撮合，然后更新交易委托账本
+
+	var trade *model.Trade
+	var useAmount decimal.Decimal
+
+	// 判断订单是买还是卖
+	if order.Side == enum.SideBuy {
+		// 买单数量去吃头部单的数量
+		// 如果买单数量>=头部订单数量，那么就把头部订单完全吃掉
+		if order.Amount.GreaterThanOrEqual(headOrder.Amount) {
+			useAmount = headOrder.Amount
+			order.Amount = order.Amount.Sub(headOrder.Amount)
+			// 把头部订单从交易委托账本中去掉
+			book.PopHeadSellOrder()
+			// 把头部订单从缓存中去掉
+			cache.RemoveOrder(*headOrder)
+		} else {
+			// 如果买单数量<头部订单数量，那么就只消耗了买单数量
+			useAmount = order.Amount
+			headOrder.Amount = headOrder.Amount.Sub(order.Amount)
+		}
+	} else {
+		// 卖单数量去吃头部单的数量
+		// 如果卖单数量>=头部订单数量，那么就把头部订单完全吃掉
+		if order.Amount.GreaterThanOrEqual(headOrder.Amount) {
+			useAmount = headOrder.Amount
+			order.Amount = order.Amount.Sub(headOrder.Amount)
+			// 把头部订单从交易委托账本中去掉
+			book.PopHeadBuyOrder()
+		} else {
+			// 如果买单数量<头部订单数量，那么就只消耗了买单数量
+			useAmount = order.Amount
+			headOrder.Amount = headOrder.Amount.Sub(order.Amount)
+		}
+	}
+
+	// 更新价格
+	lastTradePrice = &headOrder.Price
+
+	// 生成交易记录，推给消息队列
+	trade = &model.Trade{
+		MakerId: headOrder.OrderId,
+		TakerId: order.OrderId,
+		TakerSide: order.Side,
+		Amount: useAmount,
+		Price: order.Price,
+		Timestamp: time.Now().UnixMicro(),
+	}
+	maptrade, _ := common.ToMap(trade)
+	mq.SendTrade(order.Symbol, maptrade)
+}
+
+// 撤单处理
 func dealCancel(order *model.Order, book *model.OrderBook) {
 
 }
 
-// 分发订单
+// Dispatch 分发订单
 func Dispatch(order model.Order) error {
 	if OrderChanMap[order.Symbol] == nil {
 		return common.Errors(fmt.Sprintf("%s 引擎未启动", order.Symbol))
 	}
 
-
 	// 挂单判断存在不
 	if order.Action == enum.ActionCreate {
-		if cache.OrderExist(order.Symbol, order.OrderId, order.Action.String()) {
+		if cache.OrderExist(order.Symbol, order.OrderId) {
 			return common.Errors(fmt.Sprintf("%s-%s 订单已存在，不能重复挂单", order.Symbol, order.OrderId))
 		}
 	} else {
 		// 撤单如果订单不存在就没法撤
-		if !cache.OrderExist(order.Symbol, order.OrderId, enum.ActionCreate.String()) {
+		if !cache.OrderExist(order.Symbol, order.OrderId) {
 			return common.Errors(fmt.Sprintf("%s-%s 订单不存在，无法撤单", order.Symbol, order.OrderId))
 		}
 	}
 
 	order.Timestamp = time.Now().UnixMicro()
-	ordermap, err := order.ToMap()
-	if err != nil {
-		return common.Errors(fmt.Sprintf("%s-%s 订单不存在，无法撤单", order.Symbol, order.OrderId))
-	}
-
-	cache.SaveOrder(ordermap)
+	cache.SaveOrder(order)
 	OrderChanMap[order.Symbol] <- order
 
 	return nil
 }
 
-// 关闭引擎
+// CloseEngine 关闭引擎
 func CloseEngine(symbol string) error {
 	if OrderChanMap[symbol] == nil {
 		return common.Errors(fmt.Sprintf("%s 引擎未启动", symbol))

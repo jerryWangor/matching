@@ -5,7 +5,6 @@ import (
 	"github.com/shopspring/decimal"
 	"matching/engine"
 	"matching/model"
-	"matching/utils/cache"
 	"matching/utils/code"
 	"matching/utils/enum"
 	"matching/utils/redis"
@@ -13,14 +12,14 @@ import (
 )
 
 type handleOrder struct {
-	Accid int `json:"accid" form:"accid" binding:"require"`
-	Action enum.OrderAction `json:"action" form:"action" binding:"require"`
-	Symbol string `json:"symbol" form:"symbol" binding:"require"`
-	OrderId string `json:"orderid" form:"orderid" binding:"require"`
-	Side enum.OrderSide `json:"side" form:"side" binding:"require"`
-	Type enum.OrderType `json:"type" form:"type" binding:"require"`
-	Amount decimal.Decimal `json:"amount" form:"amount" binding:"require"`
-	Price decimal.Decimal `json:"price" form:"price" binding:"require"`
+	Accid int `json:"accid" form:"accid" binding:"require" comment:"账号ID"`
+	Action enum.OrderAction `json:"action" form:"action" binding:"require" comment:"0 挂单 1 撤单"`
+	Symbol string `json:"symbol" form:"symbol" binding:"require" comment:"交易标"`
+	OrderId string `json:"orderId" form:"orderId" binding:"require" comment:"订单ID"`
+	Type enum.OrderType `json:"type" form:"type" binding:"require" comment:"竞价类型：0 普通交易"`
+	Side enum.OrderSide `json:"side" form:"side" binding:"require" comment:"0 买 1 卖"`
+	Amount decimal.Decimal `json:"amount" form:"amount" binding:"require" comment:"数量"`
+	Price decimal.Decimal `json:"price" form:"price" binding:"require" comment:"价格"`
 }
 
 func HandleOrder(c *gin.Context) {
@@ -54,8 +53,13 @@ func HandleOrder(c *gin.Context) {
 		Amount: hOrder.Amount,
 		Price: hOrder.Price,
 	}
-	cache.SaveOrder(order)
-	engine.OrderChanMap[order.Symbol] <- order
+	// 调用分发订单
+	err := engine.Dispatch(order)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_ERROR, "msg": err})
+	} else {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_OK, "msg": "success"})
+	}
 
-	c.JSON(http.StatusOK, gin.H{"code": code.HTTP_OK, "msg": "success"})
+
 }

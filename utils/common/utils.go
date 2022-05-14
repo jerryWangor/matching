@@ -4,35 +4,37 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"matching/utils"
+	"reflect"
 	"strings"
 	"time"
 )
 
-// 获取当前时间
+// GetNowTime 获取当前时间
 func GetNowTime() string {
 	return time.Now().Format("2006-01-02 15:04:05")
 }
 
-// 获取当前时间-时间戳
+// GetNowTimeStamp 获取当前时间-时间戳
 func GetNowTimeStamp() int64 {
 	return time.Now().Unix()
 }
 
-// 获取当前日期
+// GetNowDate 获取当前日期
 func GetNowDate() string {
 	return time.Now().Format("2006-01-02")
 }
 
-// 获取where条件
+// GetWheres 获取where条件
 func GetWheres(where []string) string {
 	var wheres = strings.Join(where, " and ")
 	return wheres
 }
 
-// md5加密
+// GetMd5String md5加密
 func GetMd5String(str string) string {
 	data := []byte(str)
 	has := md5.Sum(data)
@@ -40,7 +42,7 @@ func GetMd5String(str string) string {
 	return md5str
 }
 
-// int转字节
+// IntToBytes int转字节
 func IntToBytes(n int) []byte {
 	data := int64(n)
 	bytebuf := bytes.NewBuffer([]byte{})
@@ -48,7 +50,7 @@ func IntToBytes(n int) []byte {
 	return bytebuf.Bytes()
 }
 
-// 字节转int
+// BytesToInt 字节转int
 func BytesToInt(bys []byte) int {
 	bytebuff := bytes.NewBuffer(bys)
 	var data int64
@@ -56,8 +58,45 @@ func BytesToInt(bys []byte) int {
 	return int(data)
 }
 
-// 返回error类型错误，并记录error级别日志
+// Errors 返回error类型错误，并记录error级别日志
 func Errors(str string) error {
 	utils.LogError(str)
 	return errors.New(str)
+}
+
+// ToMap 结构体转Map
+func ToMap(o interface{}) (map[string]interface{}, error) {
+
+	out := make(map[string]interface{})
+
+	// 通过反射获取信息
+	v := reflect.ValueOf(o)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	// 判断是不是结构体
+	if v.Kind() != reflect.Struct {  // 非结构体返回错误提示
+		return out, Errors(fmt.Sprintf("ToMap only accepts struct or struct pointer; got %T", v))
+	}
+
+	t := v.Type()
+	// 遍历结构体字段
+	// 指定tagName值为map中key;字段值为map中value
+	for i := 0; i < v.NumField(); i++ {
+		fi := t.Field(i)
+		if tagValue := fi.Tag.Get("json"); tagValue != "" {
+			out[tagValue] = v.Field(i).Interface()
+		}
+	}
+	return out, nil
+}
+
+// ToJson 结构体转json
+func ToJson(o interface{}) string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		utils.LogError("json marshal error", err)
+	}
+	return string(data)
 }
