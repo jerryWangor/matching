@@ -174,7 +174,13 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 
 // 撤单处理
 func dealCancel(order *model.Order, book *model.OrderBook) {
-
+	// 撤单直接删除redis，从交易委托账本里面移除
+	cache.RemoveOrder(*order)
+	if order.Side == enum.SideBuy {
+		book.RemoveBuyOrder(order)
+	} else {
+		book.RemoveSellOrder(order)
+	}
 }
 
 // Dispatch 分发订单

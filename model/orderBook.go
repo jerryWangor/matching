@@ -53,3 +53,14 @@ func (o *OrderBook) RemoveHeadBuyOrder() {
 func (o *OrderBook) RemoveHeadSellOrder() {
 	o.sellOrderQueue.popHeadOrder()
 }
+
+// RemoveBuyOrder 删除指定买单
+func (o *OrderBook) RemoveBuyOrder(order *Order) {
+	// list里面匹配出订单ID再删除
+	o.buyOrderQueue.removeOrder(order)
+}
+
+// RemoveBuyOrder 删除指定卖单
+func (o *OrderBook) RemoveSellOrder(order *Order) {
+
+}
