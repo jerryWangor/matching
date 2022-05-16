@@ -44,7 +44,6 @@ func Run(symbol string, price decimal.Decimal) {
 	for {
 		// 监听订单通道进行操作
 		order, ok := <-OrderChanMap[symbol]
-		fmt.Println(order)
 		if !ok {
 			// 如果通道关闭就关闭引擎
 			log.Info("engine %s is closed", symbol)

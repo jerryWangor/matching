@@ -49,7 +49,6 @@ func RemoveSymbol(symbol string) {
 func HasSymbol(symbol string) bool {
 	key := "matching:s:symbols"
 	symbols := redisClient.SMembers(key).Val()
-	fmt.Println(symbols)
 	for _, v := range symbols {
 		if v == symbol {
 			return true
@@ -148,9 +147,11 @@ func RemoveOrder(order map[string]interface{}) {
 
 func OrderExist(symbol string, orderId string) bool {
 	key := "matching:h:order:" + symbol + ":" + orderId
-	result, err := redisClient.HMGet(key, "*").Result()
-	fmt.Println(result)
+	result, err := redisClient.HGetAll(key).Result()
 	if err != nil {
+		return true
+	}
+	if len(result)>0 {
 		return true
 	}
 	return false

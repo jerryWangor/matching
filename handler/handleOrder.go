@@ -57,7 +57,7 @@ func HandleOrder(c *gin.Context) {
 	// 调用分发订单
 	err := engine.Dispatch(order)
 	if err != nil {
-		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_ERROR, "msg": err})
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_ERROR, "msg": err.Error()})
 	} else {
 		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_OK, "msg": "success"})
 	}
