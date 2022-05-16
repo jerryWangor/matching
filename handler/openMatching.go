@@ -10,10 +10,11 @@ import (
 )
 
 type OpenMatch struct {
-	Symbol string `form:"symbol" binding:"require"`
+	Symbol string `form:"symbol" binding:"required"`
 }
 
 func OpenMatching(c *gin.Context) {
+
 	// 绑定参数
 	var openMatch OpenMatch
 	if c.ShouldBind(&openMatch) != nil {

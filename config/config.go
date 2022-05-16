@@ -8,6 +8,7 @@ import (
 
 const (
 	LogSwitch bool = true // 日志开关
+	LogPrintLn bool = true // 日志窗口打印开关
 )
 
 // 配置的一些初始化

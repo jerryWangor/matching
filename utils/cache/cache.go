@@ -3,9 +3,11 @@ package cache
 import (
 	"github.com/shopspring/decimal"
 	"matching/model"
-	"matching/utils"
 	"matching/utils/common"
+	"matching/utils/enum"
+	"matching/utils/log"
 	cache "matching/utils/redis"
+	"strconv"
 )
 
 // SaveSymbol 保存交易标
@@ -45,23 +47,49 @@ func RemovePrice(symbol string) {
 
 // SaveOrder 保存订单
 func SaveOrder(order model.Order) {
-	maporder, err := common.ToMap(order)
-	if err != nil {
-		utils.LogError("订单保存失败")
-	}
-	cache.SaveOrder(maporder)
+	// 这里不用ToMap，手动进行转换
+	var orderMap = make(map[string]interface{})
+	orderMap["symbol"] = order.Symbol
+	orderMap["orderId"] = order.OrderId
+	orderMap["action"] = int(order.Action)
+	orderMap["type"] = int(order.Type)
+	orderMap["side"] = int(order.Side)
+	orderMap["amount"] = order.Amount.String()
+	orderMap["price"] = order.Price.String()
+	orderMap["timestamp"], _ = strconv.ParseFloat(strconv.FormatInt(order.Timestamp,10), 64)
+	cache.SaveOrder(orderMap)
 }
 
 // GetOrder 获取订单
-func GetOrder(symbol string, orderid string) map[string]interface{} {
-	return cache.GetOrder(symbol, orderid)
+func GetOrder(symbol string, orderid string) model.Order {
+	orderMap := cache.GetOrder(symbol, orderid)
+
+	// 这里可能有问题
+	action, _ := strconv.Atoi(orderMap["action"].(string))
+	otype, _ := strconv.Atoi(orderMap["type"].(string))
+	side, _ := strconv.Atoi(orderMap["side"].(string))
+	amount, _ := decimal.NewFromString(orderMap["amount"].(string))
+	price, _ := decimal.NewFromString(orderMap["price"].(string))
+	timestamp, _ := strconv.ParseInt(orderMap["timestamp"].(string), 10, 64)
+
+	order := model.Order {
+		Symbol: orderMap["symbol"].(string),
+		OrderId: orderMap["orderId"].(string),
+		Action: enum.OrderAction(action),
+		Type: enum.OrderType(otype),
+		Side: enum.OrderSide(side),
+		Amount: amount,
+		Price: price,
+		Timestamp: timestamp, // 这里可能有精度问题
+	}
+	return order
 }
 
 // UpdateOrder 更新订单
 func UpdateOrder(order model.Order) {
 	maporder, err := common.ToMap(order)
 	if err != nil {
-		utils.LogError("订单更新失败")
+		log.Error("订单更新失败")
 	}
 	cache.UpdateOrder(maporder)
 }
@@ -70,7 +98,7 @@ func UpdateOrder(order model.Order) {
 func RemoveOrder(order model.Order) {
 	maporder, err := common.ToMap(order)
 	if err != nil {
-		utils.LogError("订单删除失败")
+		log.Error("订单删除失败")
 	}
 	cache.RemoveOrder(maporder)
 }

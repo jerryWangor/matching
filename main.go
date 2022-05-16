@@ -7,6 +7,7 @@ import (
 	_ "matching/config"
 	"matching/engine"
 	"matching/handler"
+	"matching/utils/log"
 	"matching/utils/middleware"
 	"matching/utils/redis"
 )
@@ -14,27 +15,32 @@ import (
 func main() {
 
 	// 日志初始化
-	//utils.InitLog()
+	log.InitLog()
 	// redis初始化
 	redis.InitRedis()
 	// 引擎初始化
 	engine.Init()
 
-	engine := gin.Default()
+	http := gin.Default()
 	// 注册中间件
-	engine.Use(middleware.AuthSign())
+	http.Use(middleware.AuthSign())
 	// 交易标路由分组
-	symbolGroup := engine.Group("/symbol")
+	symbolGroup := http.Group("/symbol")
 	// open
 	symbolGroup.POST("/openMatching", handler.OpenMatching)
 	// close
 	symbolGroup.POST("/closeMatching", handler.CloseMatching)
 
 	// 订单处理分组
-	orderGroup := engine.Group("/order")
+	orderGroup := http.Group("/order")
 	// 订单处理
 	orderGroup.POST("/handleOrder", handler.HandleOrder)
 
-	engine.Run(viper.GetString("server.port"))
+	// 订单处理分组
+	logGroup := http.Group("/log")
+	// 订单处理
+	logGroup.POST("/showLogs", handler.ShowLogs)
+
+	http.Run(viper.GetString("server.port"))
 
 }

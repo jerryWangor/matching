@@ -1,6 +1,8 @@
 package model
 
-import "matching/utils/enum"
+import (
+	"matching/utils/enum"
+)
 
 // OrderBook 交易委托账本，是一个二维链表
 type OrderBook struct {
@@ -56,11 +58,10 @@ func (o *OrderBook) RemoveHeadSellOrder() {
 
 // RemoveBuyOrder 删除指定买单
 func (o *OrderBook) RemoveBuyOrder(order *Order) {
-	// list里面匹配出订单ID再删除
 	o.buyOrderQueue.removeOrder(order)
 }
 
-// RemoveBuyOrder 删除指定卖单
+// RemoveSellOrder 删除指定卖单
 func (o *OrderBook) RemoveSellOrder(order *Order) {
-
+	o.sellOrderQueue.removeOrder(order)
 }

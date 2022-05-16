@@ -1,11 +1,10 @@
-package utils
+package log
 
 import (
 	"bufio"
 	"fmt"
 	"log"
 	"matching/config"
-	"matching/utils/common"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -229,13 +228,21 @@ func (f *FileLogger) logWriter() {
 			fbuf = f.bufError
 		}
 
-		fbuf.WriteString(common.GetNowTime() + "：")
+		fbuf.WriteString(getNowTime() + "：")
 		fbuf.WriteString(content.content)
 		fbuf.WriteString("\n")
 		fbuf.Flush() // flush把缓存中的内容写到文件中
 
 		f.mu.RUnlock()
+
+		if config.LogPrintLn {
+			log.Println(content.content)
+		}
 	}
+}
+
+func getNowTime() string {
+	return time.Now().Format("2006-01-02 15:04:05")
 }
 
 // 文件监听，每30秒检查文件是否需要分隔
@@ -246,7 +253,7 @@ func (f *FileLogger) fileMonitor() {
 	for {
 		select {
 		case <-ticker.C:
-			log.Println("检查文件分隔")
+			//log.Println("检查文件分隔")
 			if f.isMustSplit() {
 				if err := f.split(); err != nil {
 					log.Printf("Log split error: %v\n", err)
@@ -296,7 +303,7 @@ func (f *FileLogger) split() error {
 }
 
 // 对外提供的接口
-func LogDebug(format string, v ...interface{}) {
+func Debug(format string, v ...interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	var logContent LogContent
 	logContent.level = 0
@@ -304,7 +311,7 @@ func LogDebug(format string, v ...interface{}) {
 	fileLogger.logChan <- logContent
 }
 
-func LogInfo(format string, v ...interface{}) {
+func Info(format string, v ...interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	var logContent LogContent
 	logContent.level = 1
@@ -312,7 +319,7 @@ func LogInfo(format string, v ...interface{}) {
 	fileLogger.logChan <- logContent
 }
 
-func LogWarn(format string, v ...interface{}) {
+func Warn(format string, v ...interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	var logContent LogContent
 	logContent.level = 2
@@ -320,7 +327,7 @@ func LogWarn(format string, v ...interface{}) {
 	fileLogger.logChan <- logContent
 }
 
-func LogError(format string, v ...interface{}) {
+func Error(format string, v ...interface{}) {
 	_, file, line, _ := runtime.Caller(1)
 	var logContent LogContent
 	logContent.level = 3

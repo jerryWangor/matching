@@ -9,7 +9,7 @@ import (
 )
 
 type CloseMatch struct {
-	Symbol string `form:"symbol" binding:"require" comment:"交易标"`
+	Symbol string `form:"symbol" binding:"required" comment:"交易标"`
 }
 
 func CloseMatching(c *gin.Context) {
@@ -35,5 +35,8 @@ func CloseMatching(c *gin.Context) {
 
 	if err := engine.CloseEngine(closeMatch.Symbol); err != nil {
 		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_MATCHINIG_CLOSE_REPEAT, "msg": "交易标引擎关闭失败"})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"code": code.HTTP_OK, "msg": "交易标引擎关闭成功"})
 }

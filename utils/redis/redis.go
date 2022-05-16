@@ -5,71 +5,72 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
-	"matching/utils"
+	"matching/utils/log"
+	"strconv"
 )
 
-var RedisClient *redis.Client
+var redisClient *redis.Client
 
 func InitRedis() {
 
 	defer func() {
 		fuckedUp := recover() //recover() 捕获错误保存到变量中
 		if fuckedUp != nil {
-			fmt.Println(fuckedUp)
+			log.Error("Redis连接异常：", fuckedUp)
 		}
 	}()
 
 	addr := viper.GetString("redis.addr")
 	password := viper.GetString("redis.password")
-	RedisClient = redis.NewClient(&redis.Options{
+	redisClient = redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password, // no password set
 		DB:       0,  // use default DB
 	})
 
-	_, err := RedisClient.Ping().Result()
+	_, err := redisClient.Ping().Result()
 	if err != nil {
 		panic(err)
 	} else {
-		utils.LogInfo(fmt.Sprintf("Connected to redis: %s", addr))
+		log.Info(fmt.Sprintf("Connected to redis: %s", addr))
 	}
 }
 
 func SaveSymbol(symbol string) {
-	key := "matching:symbols"
-	RedisClient.SAdd(key, symbol)
+	key := "matching:s:symbols"
+	redisClient.SAdd(key, symbol)
 }
 
 func RemoveSymbol(symbol string) {
-	key := "matching:symbols"
-	RedisClient.SRem(key, symbol)
+	key := "matching:s:symbols"
+	redisClient.SRem(key, symbol)
 }
 
 func HasSymbol(symbol string) bool {
-	key := "matching:symbols"
-	symbols := RedisClient.SMembers(key).Val()
+	key := "matching:s:symbols"
+	symbols := redisClient.SMembers(key).Val()
+	fmt.Println(symbols)
 	for _, v := range symbols {
 		if v == symbol {
 			return true
-			break
 		}
 	}
 	return false
 }
 
 func GetSymbols() []string {
-	key := "matching:symbols"
-	return RedisClient.SMembers(key).Val()
+	key := "matching:s:symbols"
+	return redisClient.SMembers(key).Val()
 }
 
 func SavePrice(symbol string, price decimal.Decimal) {
-	key := "matching:price:" + symbol
-	RedisClient.Set(key, price.String(), 0)
+	key := "matching:s:price:" + symbol
+	redisClient.Set(key, price.String(), 0)
 }
 
 func GetPrice(symbol string) decimal.Decimal {
-	key := "matching:price:" + symbol
-	priceStr := RedisClient.Get(key).Val()
+	key := "matching:s:price:" + symbol
+	priceStr := redisClient.Get(key).Val()
 	result, err := decimal.NewFromString(priceStr)
 	if err != nil {
 		result = decimal.Zero
@@ -78,8 +79,8 @@ func GetPrice(symbol string) decimal.Decimal {
 }
 
 func RemovePrice(symbol string) {
-	key := "matching:price:" + symbol
-	RedisClient.Del(key)
+	key := "matching:s:price:" + symbol
+	redisClient.Del(key)
 }
 
 // SaveOrder 保存订单
@@ -87,80 +88,77 @@ func SaveOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
 	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
-	action := order["action"].(string)
 
-	//key := "matching:order:" + symbol + ":" + orderId + ":" + action
-	key := "matching:order:" + symbol + ":" + orderId
-	RedisClient.HMSet(key, order)
+	// 数据转换才能存入redis   redis: can't marshal enum.OrderAction (implement encoding.BinaryMarshaler)
+	key := "matching:h:order:" + symbol + ":" + orderId
+	redisClient.HMSet(key, order)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
-	key = "matching:orderids:" + symbol
+	key = "matching:z:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
-		Member: orderId + ":" + action,
+		Member: orderId,
 	}
-	RedisClient.ZAdd(key, *z)
+	redisClient.ZAdd(key, *z)
 }
 
 func GetOrder(symbol string, orderId string) map[string]interface{} {
 	// 从redis中查询订单
-	var maporder map[string]interface{}
-	maporder = make(map[string]interface{})
-	key := "matching:order:" + symbol + ":" + orderId
-	result := RedisClient.HMGet(key)
-	for _, v := range result.Val() {
-		utils.LogDebug(fmt.Sprintf("getorder 的值是：%s", v))
+	var orderMap = make(map[string]interface{})
+	key := "matching:h:order:" + symbol + ":" + orderId
+	result, _ := redisClient.HGetAll(key).Result()
+	for k, v := range result {
+		orderMap[k] = v
 	}
-	return maporder
+	return orderMap
 }
 
 func UpdateOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
-	action := order["action"].(string)
-	key := "matching:order:" + symbol + ":" + orderId
-	RedisClient.HMSet(key, order)
+	timestamp, _ := strconv.ParseFloat(order["timestamp"].(string), 64) // time.Now().UnixMicro() 16位
+	key := "matching:h:order:" + symbol + ":" + orderId
+	redisClient.HMSet(key, order)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
-	key = "matching:orderids:" + symbol
+	key = "matching:z:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
-		Member: orderId + ":" + action,
+		Member: orderId,
 	}
-	RedisClient.ZAdd(key, *z)
+	redisClient.ZAdd(key, *z)
 }
 
 func RemoveOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
-	action := order["action"].(string)
-	key := "matching:order:" + symbol + ":" + orderId
-	RedisClient.HDel(key)
+	timestamp, _ := strconv.ParseFloat(order["timestamp"].(string), 64) // time.Now().UnixMicro() 16位
+	key := "matching:h:order:" + symbol + ":" + orderId
+	redisClient.HDel(key)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
-	key = "matching:orderids:" + symbol
+	key = "matching:z:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
-		Member: orderId + ":" + action,
+		Member: orderId,
 	}
 
-	RedisClient.ZRem(key, *z)
+	redisClient.ZRem(key, *z)
 }
 
 func OrderExist(symbol string, orderId string) bool {
-	key := "matching:order:" + symbol + ":" + orderId
-	result := RedisClient.HMGet(key)
-	if result != nil {
+	key := "matching:h:order:" + symbol + ":" + orderId
+	result, err := redisClient.HMGet(key, "*").Result()
+	fmt.Println(result)
+	if err != nil {
 		return true
 	}
 	return false
 }
 
 func GetOrderIdsWithSymbol(symbol string) []string {
-	key := "matching:orderids:" + symbol
-	return RedisClient.ZRange(key, 0, -1).Val()
+	key := "matching:z:orderids:" + symbol
+	return redisClient.ZRange(key, 0, 10).Val()
 }
 
 
@@ -177,7 +175,7 @@ func SendCancelResult(symbol, orderId string, ok bool) {
 		MaxLenApprox: 1000,
 		Values:       values,
 	}
-	RedisClient.XAdd(a)
+	redisClient.XAdd(a)
 }
 
 func SendTrade(symbol string, trade map[string]interface{}) {
@@ -186,5 +184,5 @@ func SendTrade(symbol string, trade map[string]interface{}) {
 		MaxLenApprox: 1000,
 		Values:       trade,
 	}
-	RedisClient.XAdd(a)
+	redisClient.XAdd(a)
 }

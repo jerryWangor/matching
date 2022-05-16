@@ -5,21 +5,22 @@ import (
 	"github.com/shopspring/decimal"
 	"matching/engine"
 	"matching/model"
+	"matching/utils/cache"
 	"matching/utils/code"
 	"matching/utils/enum"
-	"matching/utils/redis"
 	"net/http"
 )
 
+// 这里有个坑，表单不能接收0值，只需要把enum.OrderType前面加个*号就可以了
 type handleOrder struct {
-	Accid int `json:"accid" form:"accid" binding:"require" comment:"账号ID"`
-	Action enum.OrderAction `json:"action" form:"action" binding:"require" comment:"0 挂单 1 撤单"`
-	Symbol string `json:"symbol" form:"symbol" binding:"require" comment:"交易标"`
-	OrderId string `json:"orderId" form:"orderId" binding:"require" comment:"订单ID"`
-	Type enum.OrderType `json:"type" form:"type" binding:"require" comment:"竞价类型：0 普通交易"`
-	Side enum.OrderSide `json:"side" form:"side" binding:"require" comment:"0 买 1 卖"`
-	Amount decimal.Decimal `json:"amount" form:"amount" binding:"require" comment:"数量"`
-	Price decimal.Decimal `json:"price" form:"price" binding:"require" comment:"价格"`
+	//Accid int `json:"accid" form:"accid" binding:"required" comment:"账号ID"`
+	Action *enum.OrderAction `json:"action" form:"action" binding:"required" comment:"0 挂单 1 撤单"`
+	Symbol string `json:"symbol" form:"symbol" binding:"required" comment:"交易标"`
+	OrderId string `json:"orderId" form:"orderId" binding:"required" comment:"订单ID"`
+	Type *enum.OrderType `json:"type" form:"type" binding:"required" comment:"竞价类型：0 普通交易"`
+	Side *enum.OrderSide `json:"side" form:"side" binding:"required" comment:"0 买 1 卖"`
+	Amount decimal.Decimal `json:"amount" form:"amount" binding:"required" comment:"数量"`
+	Price decimal.Decimal `json:"price" form:"price" binding:"required" comment:"价格"`
 }
 
 func HandleOrder(c *gin.Context) {
@@ -37,19 +38,19 @@ func HandleOrder(c *gin.Context) {
 	}
 
 	// 判断该交易标引擎是否开启，从redis缓存中查询
-	if redis.HasSymbol(hOrder.Symbol) {
-		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_MATCHINIG_OPEN_REPEAT, "msg": "交易标引擎重复开启"})
+	if !cache.HasSymbol(hOrder.Symbol) {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_MATCHINIG_OPEN_REPEAT, "msg": "交易标引擎未启动"})
 		return
 	}
 
 	// 写入redis并发给通道
 	order := model.Order{
-		Accid: hOrder.Accid,
-		Action: hOrder.Action,
+		//Accid: hOrder.Accid,
+		Action: *hOrder.Action,
 		Symbol: hOrder.Symbol,
 		OrderId: hOrder.OrderId,
-		Side: hOrder.Side,
-		Type: hOrder.Type,
+		Side: *hOrder.Side,
+		Type: *hOrder.Type,
 		Amount: hOrder.Amount,
 		Price: hOrder.Price,
 	}

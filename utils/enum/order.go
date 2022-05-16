@@ -44,17 +44,17 @@ func (o OrderAction) Valid() bool {
 func (o OrderType) String() string {
 	switch o {
 	case TypeLimit:
-		return "create"
+		return "limit"
 	case TypeLimitIoc:
-		return "cancel"
+		return "limitIoc"
 	case TypeMarket:
-		return "cancel"
+		return "market"
 	case TypeMarketTop5:
-		return "cancel"
+		return "marketTop5"
 	case TypeMarketTop10:
-		return "cancel"
+		return "marketTop10"
 	case TypeMarketOpponent:
-		return "cancel"
+		return "marketOpponent"
 	default:
 		return "unknown"
 	}

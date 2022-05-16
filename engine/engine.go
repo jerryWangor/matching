@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"github.com/shopspring/decimal"
 	"matching/model"
-	"matching/utils"
 	"matching/utils/cache"
 	"matching/utils/common"
 	"matching/utils/enum"
+	"matching/utils/log"
 	"matching/utils/mq"
 	"time"
 )
@@ -22,7 +22,6 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 	OrderChanMap[symbol] = make(chan model.Order, 100)
 	go Run(symbol, price)
 
-	utils.LogInfo("cache symbol")
 	cache.SaveSymbol(symbol)
 	cache.SavePrice(symbol, price)
 
@@ -34,21 +33,26 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 func Run(symbol string, price decimal.Decimal) {
 	lastTradePrice := price
 
+	// 初始化交易委托账本
 	book := &model.OrderBook{}
 	book.Init()
 
-	utils.LogInfo("engine %s is running", symbol)
+	// 把该交易标账本放到总账本里面
+	AllOrderBookMap[symbol] = book
+
+	log.Info("engine %s is running", symbol)
 	for {
 		// 监听订单通道进行操作
 		order, ok := <-OrderChanMap[symbol]
+		fmt.Println(order)
 		if !ok {
 			// 如果通道关闭就关闭引擎
-			utils.LogInfo("engine %s is closed", symbol)
+			log.Info("engine %s is closed", symbol)
 			delete(OrderChanMap, symbol)
 			cache.RemoveSymbol(symbol)
 			return
 		}
-		utils.LogInfo("engine %s receive an order: %s", symbol, common.ToJson(order))
+		log.Info("engine %s receive an order: %s", symbol, common.ToJson(order))
 		switch order.Action {
 		case enum.ActionCreate:
 			dealCreate(&order, book, &lastTradePrice)
@@ -93,7 +97,7 @@ LOOP:
 	// 买单价格小于卖单价格，不能成交
 	if headOrder == nil || order.Price.LessThan(headOrder.Price) {
 		book.AddBuyOrder(order)
-		utils.LogInfo("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
+		log.Info("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
 	} else {
 		matchTrade(headOrder, order, book, lastTradePrice)
 		if order.Amount.IsPositive() {
@@ -109,7 +113,7 @@ LOOP:
 	// 卖单价格大于买单价格，不能成交
 	if headOrder == nil || order.Price.GreaterThan(headOrder.Price) {
 		book.AddSellOrder(order)
-		utils.LogInfo("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
+		log.Info("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
 	} else {
 		matchTrade(headOrder, order, book, lastTradePrice)
 		if order.Amount.IsPositive() {
@@ -149,6 +153,8 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 			order.Amount = order.Amount.Sub(headOrder.Amount)
 			// 把头部订单从交易委托账本中去掉
 			book.PopHeadBuyOrder()
+			// 把头部订单从缓存中去掉
+			cache.RemoveOrder(*headOrder)
 		} else {
 			// 如果买单数量<头部订单数量，那么就只消耗了买单数量
 			useAmount = order.Amount
@@ -168,8 +174,8 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 		Price: order.Price,
 		Timestamp: time.Now().UnixMicro(),
 	}
-	maptrade, _ := common.ToMap(trade)
-	mq.SendTrade(order.Symbol, maptrade)
+	mapTrade, _ := common.ToMap(trade)
+	mq.SendTrade(order.Symbol, mapTrade)
 }
 
 // 撤单处理
@@ -181,6 +187,8 @@ func dealCancel(order *model.Order, book *model.OrderBook) {
 	} else {
 		book.RemoveSellOrder(order)
 	}
+	// 发送消息队列
+	mq.SendCancelResult(order.Symbol, order.OrderId, true)
 }
 
 // Dispatch 分发订单

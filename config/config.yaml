@@ -2,7 +2,7 @@
 server:
   port: :8080  #撮合引擎程序启动监听的端口
 redis:
-  addr: 42.193.50.38:90001  #Redis地址
+  addr: 42.193.50.38:9001  #Redis地址
   password: jerry123
 http:
   sign: a4fdc2af6949b3945b8e556d9fbce343

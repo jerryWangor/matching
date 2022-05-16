@@ -109,8 +109,16 @@ func (q *orderQueue) popHeadOrder() *Order {
 }
 
 // 删除指定订单
-func (q *orderQueue) removeOrder(e *list.Element) {
-	q.parentList.Remove(e)
+func (q *orderQueue) removeOrder(order *Order) bool {
+	// 循环链表，找到订单并删除
+	for e := q.parentList.Front(); e != nil; e = e.Next() {
+		orderId := e.Value.(*Order).OrderId
+		if orderId == order.OrderId {
+			q.parentList.Remove(e)
+			return true
+		}
+	}
+	return false
 }
 
 // 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。

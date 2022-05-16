@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"matching/utils"
+	"matching/utils/log"
 	"reflect"
 	"strings"
 	"time"
@@ -26,6 +26,12 @@ func GetNowTimeStamp() int64 {
 // GetNowDate 获取当前日期
 func GetNowDate() string {
 	return time.Now().Format("2006-01-02")
+}
+
+// TimeStampToString 时间戳转年季月时分秒字符串
+func TimeStampToString(timestamp int64) string {
+	fmt.Println(timestamp)
+	return time.Unix(timestamp,0).Format("2006-01-02 15:04:05")
 }
 
 // GetWheres 获取where条件
@@ -60,8 +66,14 @@ func BytesToInt(bys []byte) int {
 
 // Errors 返回error类型错误，并记录error级别日志
 func Errors(str string) error {
-	utils.LogError(str)
+	log.Error(str)
 	return errors.New(str)
+}
+
+// Debugs 返回加换行的字符串，并记录debug级别日志
+func Debugs(str string) string {
+	log.Debug(str)
+	return WriteStringLn(str)
 }
 
 // ToMap 结构体转Map
@@ -96,7 +108,12 @@ func ToMap(o interface{}) (map[string]interface{}, error) {
 func ToJson(o interface{}) string {
 	data, err := json.Marshal(o)
 	if err != nil {
-		utils.LogError("json marshal error", err)
+		log.Error("json marshal error", err)
 	}
 	return string(data)
+}
+
+// WriteStringLn 字符串自动加上时间和换行符
+func WriteStringLn(str string) string {
+	return GetNowTime() + str + "\n"
 }
