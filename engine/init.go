@@ -37,4 +37,17 @@ func Init() {
 		}
 	}
 
+	// 打印交易账本
+	//time.Sleep(5 * time.Second)
+	//common.Debugs("----------Start 打印交易委托账本相关数据----------")
+	//for k, v := range AllOrderBookMap {
+	//	common.Debugs(fmt.Sprintf("交易标：%s，账本如下：", k))
+	//	common.Debugs("买单：")
+	//	// 循环一直到nil
+	//	v.ShowAllBuyOrder()
+	//	common.Debugs("卖单：")
+	//	v.ShowAllSellOrder()
+	//}
+	//common.Debugs("----------End 打印交易委托账本相关数据----------")
+
 }

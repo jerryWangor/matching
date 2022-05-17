@@ -2,6 +2,8 @@ package model
 
 import (
 	"container/list"
+	"fmt"
+	"matching/utils/common"
 	"matching/utils/enum"
 )
 
@@ -52,32 +54,33 @@ func (q *orderQueue) init(sortBy enum.SortDirection) {
 // 把订单插入到链表中
 func (q *orderQueue) addOrder(order *Order) {
 
+	fmt.Println(common.ToJson(order))
 	// 如果队列长度是0，就直接放到第一个
 	if q.parentList.Len() == 0 {
 		q.parentList.PushFront(order)
 		return
 	}
 
-	// 买单队列是按照价格降序的，当前价格的订单<=那条订单，就插入到那条订单的后面
-	if q.sortBy == enum.SortDesc {
-		for e := q.parentList.Back(); e != nil; e = e.Prev() {
-			price := e.Value.(*Order).Price
-			if order.Price.LessThanOrEqual(price) {
-				q.parentList.InsertAfter(order, e)
-			} else {
-				q.parentList.InsertBefore(order, e)
-			}
+	var eKey *list.Element
+	//if q.sortBy == enum.SortDesc {
+	for e := q.parentList.Front(); e != nil; e = e.Next() {
+		price := e.Value.(*Order).Price
+		// 取出链表订单，判断当前订单价格是否>=链表订单价格，如果成立，则记录为当前插入eKey，一直循环直到遇到比当前价格小的订单，就插入eKey的后面
+		if order.Price.LessThanOrEqual(price) {
+			eKey = e
+			continue
+		} else {
+			// 如果当前订单价格>链表订单价格，直接放在该链表订单前面就好了
+			q.parentList.InsertBefore(order, e)
+			fmt.Println("插入前面")
+			break
 		}
-	} else {
-		// 卖单队列是按照价格升序的，找到<=当前价格的订单，排到前面
-		for e := q.parentList.Back(); e != nil; e = e.Prev() {
-			price := e.Value.(*Order).Price
-			if order.Price.GreaterThanOrEqual(price) {
-				q.parentList.InsertAfter(order, e)
-			} else {
-				q.parentList.InsertBefore(order, e)
-			}
-		}
+	}
+
+	// 插入到指定order后面
+	if eKey != nil {
+		q.parentList.InsertAfter(order, eKey)
+		fmt.Println("插入后面")
 	}
 
 	// 插入价格map
@@ -119,6 +122,14 @@ func (q *orderQueue) removeOrder(order *Order) bool {
 		}
 	}
 	return false
+}
+
+// 展示所有买单
+func (q *orderQueue) showAllOrder() {
+	for e := q.parentList.Front(); e != nil; e = e.Next() {
+		order := e.Value.(*Order)
+		common.Debugs(common.ToJson(order))
+	}
 }
 
 // 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。

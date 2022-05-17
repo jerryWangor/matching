@@ -57,11 +57,19 @@ func (o *OrderBook) RemoveHeadSellOrder() {
 }
 
 // RemoveBuyOrder 删除指定买单
-func (o *OrderBook) RemoveBuyOrder(order *Order) {
-	o.buyOrderQueue.removeOrder(order)
+func (o *OrderBook) RemoveBuyOrder(order *Order) bool {
+	return o.buyOrderQueue.removeOrder(order)
 }
 
 // RemoveSellOrder 删除指定卖单
-func (o *OrderBook) RemoveSellOrder(order *Order) {
-	o.sellOrderQueue.removeOrder(order)
+func (o *OrderBook) RemoveSellOrder(order *Order) bool {
+	return o.sellOrderQueue.removeOrder(order)
+}
+
+func (o *OrderBook) ShowAllBuyOrder() {
+	o.buyOrderQueue.showAllOrder()
+}
+
+func (o *OrderBook) ShowAllSellOrder() {
+	o.sellOrderQueue.showAllOrder()
 }

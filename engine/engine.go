@@ -48,6 +48,7 @@ func Run(symbol string, price decimal.Decimal) {
 			// 如果通道关闭就关闭引擎
 			log.Info("engine %s is closed", symbol)
 			delete(OrderChanMap, symbol)
+			delete(AllOrderBookMap, symbol)
 			cache.RemoveSymbol(symbol)
 			return
 		}
@@ -96,7 +97,7 @@ LOOP:
 	// 买单价格小于卖单价格，不能成交
 	if headOrder == nil || order.Price.LessThan(headOrder.Price) {
 		book.AddBuyOrder(order)
-		log.Info("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
+		log.Info("engine %s, add a buy order to the orderbook: %s", order.Symbol, common.ToJson(order))
 	} else {
 		matchTrade(headOrder, order, book, lastTradePrice)
 		if order.Amount.IsPositive() {
@@ -112,7 +113,7 @@ LOOP:
 	// 卖单价格大于买单价格，不能成交
 	if headOrder == nil || order.Price.GreaterThan(headOrder.Price) {
 		book.AddSellOrder(order)
-		log.Info("engine %s, a order has added to the orderbook: %s", order.Symbol, common.ToJson(order))
+		log.Info("engine %s, add a sell order to the orderbook: %s", order.Symbol, common.ToJson(order))
 	} else {
 		matchTrade(headOrder, order, book, lastTradePrice)
 		if order.Amount.IsPositive() {
@@ -124,7 +125,6 @@ LOOP:
 // 撮合订单
 func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBook, lastTradePrice *decimal.Decimal) {
 	// 将头部订单和当前订单进行撮合，然后更新交易委托账本
-
 	var trade *model.Trade
 	var useAmount decimal.Decimal
 
@@ -173,21 +173,30 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 		Price: order.Price,
 		Timestamp: time.Now().UnixMicro(),
 	}
-	mapTrade, _ := common.ToMap(trade)
-	mq.SendTrade(order.Symbol, mapTrade)
+	tradeMap := trade.ToMap()
+	common.Debugs("交易记录：" + common.ToJson(trade))
+	mq.SendTradeResult(order.Symbol, tradeMap)
 }
 
 // 撤单处理
 func dealCancel(order *model.Order, book *model.OrderBook) {
 	// 撤单直接删除redis，从交易委托账本里面移除
-	cache.RemoveOrder(*order)
-	if order.Side == enum.SideBuy {
-		book.RemoveBuyOrder(order)
-	} else {
-		book.RemoveSellOrder(order)
+	var result bool
+	result = cache.RemoveOrder(*order)
+	if result != false {
+		if order.Side == enum.SideBuy {
+			result = book.RemoveBuyOrder(order)
+		} else {
+			result = book.RemoveSellOrder(order)
+		}
+		if result == false {
+			log.Info("交易委托账本中的订单删除失败！")
+			common.Debugs("交易委托账本中的订单删除失败！")
+		}
 	}
-	// 发送消息队列
-	mq.SendCancelResult(order.Symbol, order.OrderId, true)
+
+	common.Debugs(fmt.Sprintf("撤单成功：%s-%s-%v", order.Symbol, order.OrderId, result))
+	mq.SendCancelResult(order.Symbol, order.OrderId, result)
 }
 
 // Dispatch 分发订单

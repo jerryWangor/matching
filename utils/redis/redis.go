@@ -1,12 +1,12 @@
 package redis
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
 	"matching/utils/log"
-	"strconv"
 )
 
 var redisClient *redis.Client
@@ -115,7 +115,7 @@ func GetOrder(symbol string, orderId string) map[string]interface{} {
 func UpdateOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	timestamp, _ := strconv.ParseFloat(order["timestamp"].(string), 64) // time.Now().UnixMicro() 16位
+	timestamp, _ := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
 	key := "matching:h:order:" + symbol + ":" + orderId
 	redisClient.HMSet(key, order)
 
@@ -128,21 +128,23 @@ func UpdateOrder(order map[string]interface{}) {
 	redisClient.ZAdd(key, *z)
 }
 
-func RemoveOrder(order map[string]interface{}) {
+func RemoveOrder(order map[string]interface{}) error {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	timestamp, _ := strconv.ParseFloat(order["timestamp"].(string), 64) // time.Now().UnixMicro() 16位
+	// 删除hash
 	key := "matching:h:order:" + symbol + ":" + orderId
-	redisClient.HDel(key)
-
-	// Zset(sorted_set类型) 创建以timestamp排序的数据
+	result := redisClient.Del(key)
+	if result.Err() != nil {
+		return result.Err()
+	}
+	// 删除zset
 	key = "matching:z:orderids:" + symbol
-	z := &redis.Z{
-		Score:  timestamp,
-		Member: orderId,
+	result = redisClient.ZRem(key, orderId)
+	if result.Err() != nil {
+		return result.Err()
 	}
 
-	redisClient.ZRem(key, *z)
+	return nil
 }
 
 func OrderExist(symbol string, orderId string) bool {
@@ -186,4 +188,29 @@ func SendTrade(symbol string, trade map[string]interface{}) {
 		Values:       trade,
 	}
 	redisClient.XAdd(a)
+}
+
+func GetCancelResult(symbol string) map[string]string {
+	strMap := make(map[string]string)
+	stream := "matching:cancelresults:" + symbol
+	// XRange正向查看 XRevRange反向查看 所以后面的+-要反着来
+	result := redisClient.XRevRange(stream, "+", "-")
+	val, _ := result.Result()
+	for _, v := range val {
+		json, _ := json.Marshal(v.Values)
+		strMap[v.ID] = string(json)
+	}
+	return strMap
+}
+
+func GetTradeResult(symbol string) map[string]string {
+	strMap := make(map[string]string)
+	stream := "matching:trades:" + symbol
+	result := redisClient.XRevRange(stream, "+", "-")
+	val, _ := result.Result()
+	for _, v := range val {
+		json, _ := json.Marshal(v.Values)
+		strMap[v.ID] = string(json)
+	}
+	return strMap
 }

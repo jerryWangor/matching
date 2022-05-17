@@ -1,11 +1,9 @@
 package model
 
 import (
-	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"github.com/shopspring/decimal"
-	"matching/utils/common"
 	"matching/utils/enum"
+	"strconv"
 )
 
 type Order struct {
@@ -21,10 +19,37 @@ type Order struct {
 }
 
 // FromMap Map转结构体
-func (o *Order) FromMap(orderMap map[string]interface{}) (*Order, error) {
-	if err := mapstructure.Decode(orderMap, &o); err != nil {
-		return o, common.Errors(fmt.Sprintf("map decode error"))
-	}
+func (o *Order) FromMap(orderMap map[string]interface{}) {
 
-	return o, nil
+	// 这里可能有问题
+	action, _ := strconv.Atoi(orderMap["action"].(string))
+	otype, _ := strconv.Atoi(orderMap["type"].(string))
+	side, _ := strconv.Atoi(orderMap["side"].(string))
+	amount, _ := decimal.NewFromString(orderMap["amount"].(string))
+	price, _ := decimal.NewFromString(orderMap["price"].(string))
+	timestamp, _ := strconv.ParseInt(orderMap["timestamp"].(string), 10, 64)
+
+	o.Symbol = orderMap["symbol"].(string)
+	o.OrderId = orderMap["orderId"].(string)
+	o.Action = enum.OrderAction(action)
+	o.Type = enum.OrderType(otype)
+	o.Side = enum.OrderSide(side)
+	o.Amount = amount
+	o.Price = price
+	o.Timestamp = timestamp
+}
+
+// ToMap 结构体转成map
+func (o *Order) ToMap() map[string]interface{} {
+	var orderMap = make(map[string]interface{})
+	orderMap["symbol"] = o.Symbol
+	orderMap["orderId"] = o.OrderId
+	orderMap["action"] = int(o.Action)
+	orderMap["type"] = int(o.Type)
+	orderMap["side"] = int(o.Side)
+	orderMap["amount"] = o.Amount.String()
+	orderMap["price"] = o.Price.String()
+	orderMap["timestamp"], _ = strconv.ParseFloat(strconv.FormatInt(o.Timestamp,10), 64)
+
+	return orderMap
 }

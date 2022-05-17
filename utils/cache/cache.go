@@ -4,10 +4,8 @@ import (
 	"github.com/shopspring/decimal"
 	"matching/model"
 	"matching/utils/common"
-	"matching/utils/enum"
 	"matching/utils/log"
 	cache "matching/utils/redis"
-	"strconv"
 )
 
 // SaveSymbol 保存交易标
@@ -48,40 +46,43 @@ func RemovePrice(symbol string) {
 // SaveOrder 保存订单
 func SaveOrder(order model.Order) {
 	// 这里不用ToMap，手动进行转换
-	var orderMap = make(map[string]interface{})
-	orderMap["symbol"] = order.Symbol
-	orderMap["orderId"] = order.OrderId
-	orderMap["action"] = int(order.Action)
-	orderMap["type"] = int(order.Type)
-	orderMap["side"] = int(order.Side)
-	orderMap["amount"] = order.Amount.String()
-	orderMap["price"] = order.Price.String()
-	orderMap["timestamp"], _ = strconv.ParseFloat(strconv.FormatInt(order.Timestamp,10), 64)
+	//var orderMap = make(map[string]interface{})
+	//orderMap["symbol"] = order.Symbol
+	//orderMap["orderId"] = order.OrderId
+	//orderMap["action"] = int(order.Action)
+	//orderMap["type"] = int(order.Type)
+	//orderMap["side"] = int(order.Side)
+	//orderMap["amount"] = order.Amount.String()
+	//orderMap["price"] = order.Price.String()
+	//orderMap["timestamp"], _ = strconv.ParseFloat(strconv.FormatInt(order.Timestamp,10), 64)
+
+	orderMap := order.ToMap()
 	cache.SaveOrder(orderMap)
 }
 
 // GetOrder 获取订单
 func GetOrder(symbol string, orderid string) model.Order {
+	//action, _ := strconv.Atoi(orderMap["action"].(string))
+	//otype, _ := strconv.Atoi(orderMap["type"].(string))
+	//side, _ := strconv.Atoi(orderMap["side"].(string))
+	//amount, _ := decimal.NewFromString(orderMap["amount"].(string))
+	//price, _ := decimal.NewFromString(orderMap["price"].(string))
+	//timestamp, _ := strconv.ParseInt(orderMap["timestamp"].(string), 10, 64)
+	//
+	//order := model.Order {
+	//	Symbol: orderMap["symbol"].(string),
+	//	OrderId: orderMap["orderId"].(string),
+	//	Action: enum.OrderAction(action),
+	//	Type: enum.OrderType(otype),
+	//	Side: enum.OrderSide(side),
+	//	Amount: amount,
+	//	Price: price,
+	//	Timestamp: timestamp, // 这里可能有精度问题
+	//}
+	//
 	orderMap := cache.GetOrder(symbol, orderid)
-
-	// 这里可能有问题
-	action, _ := strconv.Atoi(orderMap["action"].(string))
-	otype, _ := strconv.Atoi(orderMap["type"].(string))
-	side, _ := strconv.Atoi(orderMap["side"].(string))
-	amount, _ := decimal.NewFromString(orderMap["amount"].(string))
-	price, _ := decimal.NewFromString(orderMap["price"].(string))
-	timestamp, _ := strconv.ParseInt(orderMap["timestamp"].(string), 10, 64)
-
-	order := model.Order {
-		Symbol: orderMap["symbol"].(string),
-		OrderId: orderMap["orderId"].(string),
-		Action: enum.OrderAction(action),
-		Type: enum.OrderType(otype),
-		Side: enum.OrderSide(side),
-		Amount: amount,
-		Price: price,
-		Timestamp: timestamp, // 这里可能有精度问题
-	}
+	var order model.Order
+	order.FromMap(orderMap)
 	return order
 }
 
@@ -95,12 +96,15 @@ func UpdateOrder(order model.Order) {
 }
 
 // RemoveOrder 删除订单
-func RemoveOrder(order model.Order) {
-	maporder, err := common.ToMap(order)
+func RemoveOrder(order model.Order) bool {
+	orderMap := order.ToMap()
+	err := cache.RemoveOrder(orderMap)
 	if err != nil {
-		log.Error("订单删除失败")
+		common.Errors(err.Error())
+		return false
+	} else {
+		return true
 	}
-	cache.RemoveOrder(maporder)
 }
 
 // OrderExist 判断订单是否存在
