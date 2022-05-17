@@ -45,41 +45,12 @@ func RemovePrice(symbol string) {
 
 // SaveOrder 保存订单
 func SaveOrder(order model.Order) {
-	// 这里不用ToMap，手动进行转换
-	//var orderMap = make(map[string]interface{})
-	//orderMap["symbol"] = order.Symbol
-	//orderMap["orderId"] = order.OrderId
-	//orderMap["action"] = int(order.Action)
-	//orderMap["type"] = int(order.Type)
-	//orderMap["side"] = int(order.Side)
-	//orderMap["amount"] = order.Amount.String()
-	//orderMap["price"] = order.Price.String()
-	//orderMap["timestamp"], _ = strconv.ParseFloat(strconv.FormatInt(order.Timestamp,10), 64)
-
 	orderMap := order.ToMap()
 	cache.SaveOrder(orderMap)
 }
 
 // GetOrder 获取订单
 func GetOrder(symbol string, orderid string) model.Order {
-	//action, _ := strconv.Atoi(orderMap["action"].(string))
-	//otype, _ := strconv.Atoi(orderMap["type"].(string))
-	//side, _ := strconv.Atoi(orderMap["side"].(string))
-	//amount, _ := decimal.NewFromString(orderMap["amount"].(string))
-	//price, _ := decimal.NewFromString(orderMap["price"].(string))
-	//timestamp, _ := strconv.ParseInt(orderMap["timestamp"].(string), 10, 64)
-	//
-	//order := model.Order {
-	//	Symbol: orderMap["symbol"].(string),
-	//	OrderId: orderMap["orderId"].(string),
-	//	Action: enum.OrderAction(action),
-	//	Type: enum.OrderType(otype),
-	//	Side: enum.OrderSide(side),
-	//	Amount: amount,
-	//	Price: price,
-	//	Timestamp: timestamp, // 这里可能有精度问题
-	//}
-	//
 	orderMap := cache.GetOrder(symbol, orderid)
 	var order model.Order
 	order.FromMap(orderMap)
@@ -115,14 +86,4 @@ func OrderExist(symbol string, orderId string) bool {
 // GetOrderIdsWithSymbol 获取交易标下的所有订单IDS
 func GetOrderIdsWithSymbol(symbol string) []string {
 	return cache.GetOrderIdsWithSymbol(symbol)
-}
-
-// SendCancelResult 发送撤单结果消息队列
-func SendCancelResult(symbol, orderId string, ok bool) {
-	cache.SendCancelResult(symbol, orderId, ok)
-}
-
-// SendTrade 发送交易记录消息队列
-func SendTrade(symbol string, trade map[string]interface{}) {
-	cache.SendTrade(symbol, trade)
 }
