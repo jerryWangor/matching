@@ -62,7 +62,6 @@ func (q *orderQueue) addOrder(order *Order) {
 	}
 
 	var eKey *list.Element
-	//if q.sortBy == enum.SortDesc {
 	for e := q.parentList.Front(); e != nil; e = e.Next() {
 		price := e.Value.(*Order).Price
 		// 取出链表订单，判断当前订单价格是否>=链表订单价格，如果成立，则记录为当前插入eKey，一直循环直到遇到比当前价格小的订单，就插入eKey的后面
@@ -72,7 +71,6 @@ func (q *orderQueue) addOrder(order *Order) {
 		} else {
 			// 如果当前订单价格>链表订单价格，直接放在该链表订单前面就好了
 			q.parentList.InsertBefore(order, e)
-			fmt.Println("插入前面")
 			break
 		}
 	}
@@ -80,7 +78,6 @@ func (q *orderQueue) addOrder(order *Order) {
 	// 插入到指定order后面
 	if eKey != nil {
 		q.parentList.InsertAfter(order, eKey)
-		fmt.Println("插入后面")
 	}
 
 	// 插入价格map
