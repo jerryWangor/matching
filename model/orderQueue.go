@@ -2,7 +2,6 @@ package model
 
 import (
 	"container/list"
-	"fmt"
 	"matching/utils/common"
 	"matching/utils/enum"
 )
@@ -54,7 +53,6 @@ func (q *orderQueue) init(sortBy enum.SortDirection) {
 // 把订单插入到链表中
 func (q *orderQueue) addOrder(order *Order) {
 
-	fmt.Println(common.ToJson(order))
 	// 如果队列长度是0，就直接放到第一个
 	if q.parentList.Len() == 0 {
 		q.parentList.PushFront(order)
@@ -70,14 +68,22 @@ func (q *orderQueue) addOrder(order *Order) {
 			continue
 		} else {
 			// 如果当前订单价格>链表订单价格，直接放在该链表订单前面就好了
-			q.parentList.InsertBefore(order, e)
+			if q.sortBy == enum.SortAsc {
+				q.parentList.InsertAfter(order, e)
+			} else {
+				q.parentList.InsertBefore(order, e)
+			}
 			break
 		}
 	}
 
 	// 插入到指定order后面
 	if eKey != nil {
-		q.parentList.InsertAfter(order, eKey)
+		if q.sortBy == enum.SortAsc {
+			q.parentList.InsertBefore(order, eKey)
+		} else {
+			q.parentList.InsertAfter(order, eKey)
+		}
 	}
 
 	// 插入价格map
@@ -91,6 +97,7 @@ func (q *orderQueue) addOrder(order *Order) {
 // 从委托账本中查询头部订单
 func (q *orderQueue) getHeadOrder() *Order {
 	front := q.parentList.Front()
+
 	if front != nil {
 		// 这里先强制转换，后面改成断言
 		return q.parentList.Front().Value.(*Order)
