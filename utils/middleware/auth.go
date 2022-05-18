@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/spf13/viper"
 	"matching/model"
 	"matching/utils/code"
@@ -17,12 +18,33 @@ func AuthSign() gin.HandlerFunc {
 		// 如果是 `GET` 请求，只使用 `Form` 绑定引擎（`query`）。
 		// 如果是 `POST` 请求，首先检查 `content-type` 是否为 `JSON` 或 `XML`，
 		// 然后再使用 `Form`（`form-data`）。
-		if c.ShouldBind(&timeSign) != nil {
-			returnJson(c, code.HTTP_PARAMS_NOTEXISTS, "参数缺失")
-			return
+		//fmt.Println("request", c.Request)
+		//c.Request.ParseForm()
+		//for k, v := range c.Request.PostForm {
+		//	fmt.Printf("k:%v - v:%v", k, v)
+		//}
+		//fmt.Println(c.Params)
+
+		//d :=json.NewDecoder(c.Request.Body)
+		//var aa map[string] interface{}
+		//d.Decode(&aa)
+		//fmt.Printf("%+v",aa)
+
+		if c.ContentType() == "multipart/form-data" {
+			if result := c.ShouldBind(&timeSign); result != nil {
+				returnJson(c, code.HTTP_PARAMS_NOTEXISTS, "参数缺失：" + result.Error())
+				return
+			}
+		} else if c.ContentType() == "application/json" {
+			if result := c.ShouldBindBodyWith(&timeSign, binding.JSON); result != nil {
+				returnJson(c, code.HTTP_PARAMS_NOTEXISTS, "参数缺失：" + result.Error())
+				return
+			}
 		}
+
 		// 判断时间过期没
 		nowTime := common.GetNowTimeStamp()
+		//time, _ := strconv.Atoi(timeSign.Time)
 		if timeSign.Time + viper.GetInt64("http.timeout") < nowTime {
 			returnJson(c, code.HTTP_PARAMS_ERROR, "请求超时")
 			return

@@ -5,6 +5,7 @@ import (
 	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/log"
+	"strings"
 )
 
 var OrderChanMap map[string]chan model.Order
@@ -30,9 +31,10 @@ func Init() {
 		}
 
 		// 获取该交易标缓存的所有订单
-		orderIds := cache.GetOrderIdsWithSymbol(symbol)
-		for _, orderId := range orderIds {
-			order := cache.GetOrder(symbol, orderId)
+		orders := cache.GetOrderIdsWithSymbol(symbol)
+		for _, val := range orders {
+			orderArr := strings.Split(val,":")
+			order := cache.GetOrder(symbol, orderArr[0], orderArr[1])
 			OrderChanMap[order.Symbol] <- order
 		}
 	}

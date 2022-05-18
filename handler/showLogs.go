@@ -8,10 +8,27 @@ import (
 	"matching/utils/cache"
 	"matching/utils/common"
 	mq "matching/utils/redis"
+	"strings"
 )
 
 func ShowLogs(c *gin.Context) {
 	// 该函数为调试函数，主要是打印引擎的相关情况
+
+	//time.Sleep(3 * time.Second)
+	//_, err := http.PostForm("http://127.0.0.1:8080/order/handleOrder",
+	//	url.Values{"key": {"Value"}, "id": {"123"}})
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+
+	//_, err := http.Post("http://127.0.0.1:8080/order/handleOrder",
+	//	"application/json",
+	//	strings.NewReader("time=test&sign=ab123123"))
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//return
+
 
 	// 缓存相关
 	common.Debugs("----------Start 打印缓存相关数据----------")
@@ -20,9 +37,10 @@ func ShowLogs(c *gin.Context) {
 		price := cache.GetPrice(v)
 		common.Debugs("交易标："+ v + "，价格：" + price.String() + ",包含订单如下：")
 		// 获取该交易标缓存的所有订单
-		orderIds := cache.GetOrderIdsWithSymbol(v)
-		for _, orderId := range orderIds {
-			mapOrder := cache.GetOrder(v, orderId)
+		orders := cache.GetOrderIdsWithSymbol(v)
+		for _, val := range orders {
+			orderArr := strings.Split(val,":")
+			mapOrder := cache.GetOrder(v, orderArr[0], orderArr[1])
 			common.Debugs(formatOrderString(mapOrder))
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
+	"matching/utils/enum"
 	"matching/utils/log"
 )
 
@@ -86,25 +87,26 @@ func RemovePrice(symbol string) {
 func SaveOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
+	action := enum.OrderAction(order["action"].(int)).String()
 	timestamp := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
 
 	// 数据转换才能存入redis   redis: can't marshal enum.OrderAction (implement encoding.BinaryMarshaler)
-	key := "matching:h:order:" + symbol + ":" + orderId
+	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	redisClient.HMSet(key, order)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
 	key = "matching:z:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
-		Member: orderId,
+		Member: orderId + ":" + action,
 	}
 	redisClient.ZAdd(key, *z)
 }
 
-func GetOrder(symbol string, orderId string) map[string]interface{} {
+func GetOrder(symbol, orderId, action string) map[string]interface{} {
 	// 从redis中查询订单
 	var orderMap = make(map[string]interface{})
-	key := "matching:h:order:" + symbol + ":" + orderId
+	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	result, _ := redisClient.HGetAll(key).Result()
 	for k, v := range result {
 		orderMap[k] = v
@@ -115,15 +117,16 @@ func GetOrder(symbol string, orderId string) map[string]interface{} {
 func UpdateOrder(order map[string]interface{}) {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
+	action := enum.OrderAction(order["action"].(int)).String()
 	timestamp, _ := order["timestamp"].(float64) // time.Now().UnixMicro() 16位
-	key := "matching:h:order:" + symbol + ":" + orderId
+	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	redisClient.HMSet(key, order)
 
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
 	key = "matching:z:orderids:" + symbol
 	z := &redis.Z{
 		Score:  timestamp,
-		Member: orderId,
+		Member: orderId + ":" + action,
 	}
 	redisClient.ZAdd(key, *z)
 }
@@ -131,15 +134,16 @@ func UpdateOrder(order map[string]interface{}) {
 func RemoveOrder(order map[string]interface{}) error {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
+	action := enum.OrderAction(order["action"].(int)).String()
 	// 删除hash
-	key := "matching:h:order:" + symbol + ":" + orderId
+	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	result := redisClient.Del(key)
 	if result.Err() != nil {
 		return result.Err()
 	}
 	// 删除zset
 	key = "matching:z:orderids:" + symbol
-	result = redisClient.ZRem(key, orderId)
+	result = redisClient.ZRem(key, orderId + ":" + action)
 	if result.Err() != nil {
 		return result.Err()
 	}
@@ -147,8 +151,8 @@ func RemoveOrder(order map[string]interface{}) error {
 	return nil
 }
 
-func OrderExist(symbol string, orderId string) bool {
-	key := "matching:h:order:" + symbol + ":" + orderId
+func OrderExist(symbol, orderId, action string) bool {
+	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	result, err := redisClient.HGetAll(key).Result()
 	if err != nil {
 		return true

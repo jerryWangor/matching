@@ -41,9 +41,19 @@ func (o *OrderBook) PopHeadBuyOrder() *Order {
 	return o.buyOrderQueue.popHeadOrder()
 }
 
-// PopHeadSellOrder 抛出头部买单
+// PopHeadSellOrder 抛出头部卖单
 func (o *OrderBook) PopHeadSellOrder() *Order {
 	return o.sellOrderQueue.popHeadOrder()
+}
+
+// UpdateHeadBuyOrder 更新头部买单
+func (o *OrderBook) UpdateHeadBuyOrder(order *Order) error {
+	return o.buyOrderQueue.updateHeadOrder(order)
+}
+
+// UpdateHeadSellOrder 更新头部卖单
+func (o *OrderBook) UpdateHeadSellOrder(order *Order) error {
+	return o.sellOrderQueue.updateHeadOrder(order)
 }
 
 // RemoveHeadBuyOrder 删除买单

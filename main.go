@@ -21,26 +21,25 @@ func main() {
 	// 引擎初始化
 	engine.Init()
 
-	http := gin.Default()
+	httpEngine := gin.Default()
 	// 注册中间件
-	http.Use(middleware.AuthSign())
+	httpEngine.Use(middleware.AuthSign())
 	// 交易标路由分组
-	symbolGroup := http.Group("/symbol")
+	symbolGroup := httpEngine.Group("/symbol")
 	// open
 	symbolGroup.POST("/openMatching", handler.OpenMatching)
 	// close
 	symbolGroup.POST("/closeMatching", handler.CloseMatching)
 
 	// 订单处理分组
-	orderGroup := http.Group("/order")
+	orderGroup := httpEngine.Group("/order")
 	// 订单处理
 	orderGroup.POST("/handleOrder", handler.HandleOrder)
 
 	// 订单处理分组
-	logGroup := http.Group("/log")
+	logGroup := httpEngine.Group("/log")
 	// 订单处理
 	logGroup.POST("/showLogs", handler.ShowLogs)
 
-	http.Run(viper.GetString("server.port"))
-
+	httpEngine.Run(viper.GetString("server.port"))
 }

@@ -2,7 +2,9 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/shopspring/decimal"
+	"matching/config"
 	"matching/engine"
 	"matching/model"
 	"matching/utils/cache"
@@ -26,9 +28,16 @@ type handleOrder struct {
 func HandleOrder(c *gin.Context) {
 	// 绑定参数
 	var hOrder handleOrder
-	if c.ShouldBind(&hOrder) != nil {
-		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失"})
-		return
+	if c.ContentType() == config.HttpContentFormData {
+		if result := c.ShouldBind(&hOrder); result != nil {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失：" + result.Error()})
+			return
+		}
+	} else if c.ContentType() == config.HttpContentJson {
+		if result := c.ShouldBindBodyWith(&hOrder, binding.JSON); result != nil {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失：" + result.Error()})
+			return
+		}
 	}
 
 	// 判断参数

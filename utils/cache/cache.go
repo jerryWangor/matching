@@ -4,7 +4,6 @@ import (
 	"github.com/shopspring/decimal"
 	"matching/model"
 	"matching/utils/common"
-	"matching/utils/log"
 	cache "matching/utils/redis"
 )
 
@@ -50,8 +49,8 @@ func SaveOrder(order model.Order) {
 }
 
 // GetOrder 获取订单
-func GetOrder(symbol string, orderid string) model.Order {
-	orderMap := cache.GetOrder(symbol, orderid)
+func GetOrder(symbol string, orderid string, action string) model.Order {
+	orderMap := cache.GetOrder(symbol, orderid, action)
 	var order model.Order
 	order.FromMap(orderMap)
 	return order
@@ -59,11 +58,8 @@ func GetOrder(symbol string, orderid string) model.Order {
 
 // UpdateOrder 更新订单
 func UpdateOrder(order model.Order) {
-	maporder, err := common.ToMap(order)
-	if err != nil {
-		log.Error("订单更新失败")
-	}
-	cache.UpdateOrder(maporder)
+	orderMap := order.ToMap()
+	cache.UpdateOrder(orderMap)
 }
 
 // RemoveOrder 删除订单
@@ -79,8 +75,8 @@ func RemoveOrder(order model.Order) bool {
 }
 
 // OrderExist 判断订单是否存在
-func OrderExist(symbol string, orderId string) bool {
-	return cache.OrderExist(symbol, orderId)
+func OrderExist(symbol, orderId, action string) bool {
+	return cache.OrderExist(symbol, orderId, action)
 }
 
 // GetOrderIdsWithSymbol 获取交易标下的所有订单IDS

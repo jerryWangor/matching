@@ -63,27 +63,26 @@ func (q *orderQueue) addOrder(order *Order) {
 	for e := q.parentList.Front(); e != nil; e = e.Next() {
 		price := e.Value.(*Order).Price
 		// 取出链表订单，判断当前订单价格是否>=链表订单价格，如果成立，则记录为当前插入eKey，一直循环直到遇到比当前价格小的订单，就插入eKey的后面
-		if order.Price.LessThanOrEqual(price) {
-			eKey = e
-			continue
-		} else {
-			// 如果当前订单价格>链表订单价格，直接放在该链表订单前面就好了
-			if q.sortBy == enum.SortAsc {
-				q.parentList.InsertAfter(order, e)
-			} else {
-				q.parentList.InsertBefore(order, e)
-			}
+		// 卖单如果小于头部卖单就直接放到前面
+		if (order.Side == enum.SideBuy && order.Price.GreaterThan(price)) || (order.Side == enum.SideSell && order.Price.LessThan(price)) {
+			q.parentList.InsertBefore(order, e)
+			// 注意要设置eKey为nil
+			eKey = nil
 			break
+		} else {
+			// 卖单如果等于链表订单就设置eKey
+			if order.Price.Equals(price) {
+				eKey = e
+			} else {
+				// 如果当前订单价格>链表订单价格，就一直设置eKey，直到遇到比他大的或者最后一个值
+				eKey = e
+			}
 		}
 	}
 
 	// 插入到指定order后面
 	if eKey != nil {
-		if q.sortBy == enum.SortAsc {
-			q.parentList.InsertBefore(order, eKey)
-		} else {
-			q.parentList.InsertAfter(order, eKey)
-		}
+		q.parentList.InsertAfter(order, eKey)
 	}
 
 	// 插入价格map
@@ -115,6 +114,21 @@ func (q *orderQueue) popHeadOrder() *Order {
 	return nil
 }
 
+// 更新头部订单
+func (q *orderQueue) updateHeadOrder(order *Order) error {
+	// 先删除头部订单，在插入
+	popOrder := q.popHeadOrder()
+	if popOrder == nil {
+		return common.Errors("头部订单删除失败")
+	}
+	nowOrder := q.parentList.PushFront(order)
+	if nowOrder == nil {
+		return common.Errors("头部订单更新失败")
+	}
+
+	return nil
+}
+
 // 删除指定订单
 func (q *orderQueue) removeOrder(order *Order) bool {
 	// 循环链表，找到订单并删除
@@ -128,7 +142,7 @@ func (q *orderQueue) removeOrder(order *Order) bool {
 	return false
 }
 
-// 展示所有买单
+// 展示所有订单
 func (q *orderQueue) showAllOrder() {
 	for e := q.parentList.Front(); e != nil; e = e.Next() {
 		order := e.Value.(*Order)

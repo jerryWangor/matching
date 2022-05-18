@@ -2,6 +2,8 @@ package handler
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"matching/config"
 	"matching/engine"
 	"matching/utils/code"
 	"matching/utils/redis"
@@ -16,9 +18,16 @@ func CloseMatching(c *gin.Context) {
 
 	// 绑定参数
 	var closeMatch CloseMatch
-	if c.ShouldBind(&closeMatch) != nil {
-		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失"})
-		return
+	if c.ContentType() == config.HttpContentFormData {
+		if result := c.ShouldBind(&closeMatch); result != nil {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失：" + result.Error()})
+			return
+		}
+	} else if c.ContentType() == config.HttpContentJson {
+		if result := c.ShouldBindBodyWith(&closeMatch, binding.JSON); result != nil {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_NOTEXISTS, "msg": "参数缺失：" + result.Error()})
+			return
+		}
 	}
 
 	// 判断是否为空
