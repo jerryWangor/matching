@@ -150,6 +150,12 @@ func (q *orderQueue) showAllOrder() {
 	}
 }
 
+// 删除element账本中的订单
+func (q *orderQueue) removeElementOrder(order *Order) {
+	price := order.Price.String()
+
+}
+
 // 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。
 func (q *orderQueue) getDepthPrice(depth int) (string, int) {
 	if q.parentList.Len() == 0 {
@@ -165,7 +171,7 @@ func (q *orderQueue) getDepthPrice(depth int) (string, int) {
 			break
 		}
 	}
-	o := p.Value.(*list.List).Front().Value.(*Order)
+	o := p.Value.(*Order)
 	return o.Price.String(), i
 }
 

@@ -83,3 +83,15 @@ func OrderExist(symbol, orderId, action string) bool {
 func GetOrderIdsWithSymbol(symbol string) []string {
 	return cache.GetOrderIdsWithSymbol(symbol)
 }
+
+// SetTopN TopN
+func SetTopN(symbol string, num int, data map[string]interface{}) {
+	// topN打算用有序集合进行保存
+	cache.SetTopN(symbol, num, data)
+}
+
+// SetTopN TopN
+func GetTopN(symbol string, num int) map[string]interface{} {
+	// topN打算用有序集合进行保存
+	return cache.GetTopN(symbol, num)
+}

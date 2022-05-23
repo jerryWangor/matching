@@ -15,12 +15,12 @@ func SendTradeResult(symbol string, trade map[string]interface{}) {
 }
 
 // GetCancelResult 读取撤单结果消息队列
-func GetCancelResult(symbol, orderId string) map[string]string {
+func GetCancelResult(symbol string) map[string]string {
 	return mq.GetCancelResult(symbol)
 }
 
 // GetTradeResult 读取撮合结果消息队列
-func GetTradeResult(symbol, orderId string) map[string]string {
+func GetTradeResult(symbol string) map[string]string {
 	return mq.GetTradeResult(symbol)
 }
 

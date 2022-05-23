@@ -83,3 +83,12 @@ func (o *OrderBook) ShowAllBuyOrder() {
 func (o *OrderBook) ShowAllSellOrder() {
 	o.sellOrderQueue.showAllOrder()
 }
+
+// 获取买卖单的topN的价格
+func (o *OrderBook) GetBuyDepthPrice(num int) (string, int) {
+	return o.buyOrderQueue.getDepthPrice(num)
+}
+
+func (o *OrderBook) GetSellDepthPrice(num int) (string, int) {
+	return o.sellOrderQueue.getDepthPrice(num)
+}

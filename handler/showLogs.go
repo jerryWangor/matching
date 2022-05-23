@@ -7,7 +7,8 @@ import (
 	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/common"
-	mq "matching/utils/redis"
+	"matching/utils/mq"
+	"strconv"
 	"strings"
 )
 
@@ -75,6 +76,21 @@ func ShowLogs(c *gin.Context) {
 		v.ShowAllSellOrder()
 	}
 	common.Debugs("----------End 打印交易委托账本相关数据----------")
+
+	common.Debugs("----------Start TopN  K线图----------")
+	//for _, v := range symbols {
+	//	topMap := cache.GetTopN(v, 5)
+	//	common.Debugs(common.ToJson(topMap))
+	//}
+
+	for _, v := range engine.AllOrderBookMap {
+		bprice, bnum := v.GetBuyDepthPrice(5)
+		common.Debugs("价格：" + bprice + "，深度：" + strconv.Itoa(bnum))
+		sprice, snum := v.GetSellDepthPrice(5)
+		common.Debugs("价格：" + sprice + "，深度：" + strconv.Itoa(snum))
+	}
+	common.Debugs("----------End TopN  K线图----------")
+
 
 }
 

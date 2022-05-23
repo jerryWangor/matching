@@ -25,6 +25,9 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 	cache.SaveSymbol(symbol)
 	cache.SavePrice(symbol, price)
 
+	// k线图1分钟生成一次
+	go handleKData()
+
 	return nil
 }
 
@@ -50,6 +53,8 @@ func Run(symbol string, price decimal.Decimal) {
 			delete(OrderChanMap, symbol)
 			delete(AllOrderBookMap, symbol)
 			cache.RemoveSymbol(symbol)
+			// 关闭K线图
+			stopKDataChan<-true
 			return
 		}
 		log.Info("engine %s receive an order: %s", symbol, common.ToJson(order))
@@ -59,6 +64,9 @@ func Run(symbol string, price decimal.Decimal) {
 		case enum.ActionCancel:
 			dealCancel(&order, book)
 		}
+
+		// top先同步进行处理，后期可以考虑用通道异步处理
+		handleTopN(symbol, &lastTradePrice, book, 5)
 	}
 }
 
@@ -143,6 +151,8 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 		cache.RemoveOrder(*headOrder)
 		// 更新当前订单缓存
 		cache.UpdateOrder(*order)
+		// 删除element账本中该头部订单
+
 	} else {
 		common.Debugs("当前订单数量<头部订单")
 		// 如果买单数量<头部订单数量，那么就只消耗了买单数量
@@ -164,6 +174,7 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 		if res != nil {
 			common.Debugs("更新账本头部订单失败")
 		}
+		// 更新element账本中该头部订单数量
 	}
 
 	// 更新价格

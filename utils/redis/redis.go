@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 	"matching/utils/enum"
 	"matching/utils/log"
+	"strconv"
 )
 
 var redisClient *redis.Client
@@ -217,4 +218,21 @@ func GetTradeResult(symbol string) map[string]string {
 		strMap[v.ID] = string(json)
 	}
 	return strMap
+}
+
+//  TopN K线图
+func SetTopN(symbol string, num int, data map[string]interface{}) {
+	// topN打算用有序集合进行保存
+	key := "top" + strconv.Itoa(num) + ":h:symbol:" + symbol
+	redisClient.HMSet(key, data)
+}
+
+func GetTopN(symbol string, num int) map[string]interface{} {
+	var orderMap = make(map[string]interface{})
+	key := "top" + strconv.Itoa(num) + ":h:symbol:" + symbol
+	result, _ := redisClient.HGetAll(key).Result()
+	for k, v := range result {
+		orderMap[k] = v
+	}
+	return orderMap
 }
