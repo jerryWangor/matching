@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"matching/utils/log"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,3 +120,14 @@ func ToJson(o interface{}) string {
 func WriteStringLn(str string) string {
 	return GetNowTime() + str + "\n"
 }
+
+// InArray 判断是否在数组中
+func InArray(target string, strArray []string) bool {
+	sort.Strings(strArray)
+	index := sort.SearchStrings(strArray, target)
+	if index < len(strArray) && strArray[index] == target {
+		return true
+	}
+	return false
+}
+

@@ -8,7 +8,6 @@ import (
 	"matching/utils/cache"
 	"matching/utils/common"
 	"matching/utils/mq"
-	"strconv"
 	"strings"
 )
 
@@ -83,12 +82,7 @@ func ShowLogs(c *gin.Context) {
 	//	common.Debugs(common.ToJson(topMap))
 	//}
 
-	for _, v := range engine.AllOrderBookMap {
-		bprice, bnum := v.GetBuyDepthPrice(5)
-		common.Debugs("价格：" + bprice + "，深度：" + strconv.Itoa(bnum))
-		sprice, snum := v.GetSellDepthPrice(5)
-		common.Debugs("价格：" + sprice + "，深度：" + strconv.Itoa(snum))
-	}
+
 	common.Debugs("----------End TopN  K线图----------")
 
 

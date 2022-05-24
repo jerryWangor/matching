@@ -10,6 +10,7 @@ type Order struct {
 	//Accid int `json:"accid" comment:"账号ID"`
 	Symbol string `json:"symbol" comment:"交易标"`
 	OrderId string `json:"orderId" comment:"订单ID"`
+	ChildOrderId string `json:"childOrderId" comment:"子订单ID，如果被拆单可能用到"`
 	Action enum.OrderAction `json:"action" comment:"挂单还是撤单"`
 	Type enum.OrderType `json:"type" comment:"竞价类型"`
 	Side enum.OrderSide `json:"side" comment:"买/卖"`

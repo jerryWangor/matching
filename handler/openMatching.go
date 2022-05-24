@@ -7,9 +7,11 @@ import (
 	"matching/engine"
 	"matching/utils/cache"
 	"matching/utils/code"
-	"matching/utils/redis"
+	"matching/utils/common"
 	"net/http"
 )
+
+var AllowSymbol = []string{"BTC", "USDT", "DOGE"}
 
 type OpenMatch struct {
 	Symbol string `form:"symbol" binding:"required"`
@@ -37,8 +39,14 @@ func OpenMatching(c *gin.Context) {
 		return
 	}
 
+	// 判断是否在allow里面
+	if !common.InArray(openMatch.Symbol, AllowSymbol) {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_NOTIN_ALLOWLIST, "msg": "交易标不在允许列表中"})
+		return
+	}
+
 	// 判断该交易标引擎是否开启，从redis缓存中查询
-	if redis.HasSymbol(openMatch.Symbol) {
+	if cache.HasSymbol(openMatch.Symbol) {
 		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_MATCHINIG_OPEN_REPEAT, "msg": "交易标引擎重复开启"})
 		return
 	}

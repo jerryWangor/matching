@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"matching/utils/common"
 	"matching/utils/enum"
+	"sort"
 )
 
 /**
@@ -35,19 +36,19 @@ import (
 /**
 	sortBy 指定价格排序的方向，买单队列是降序的，而卖单队列则是升序的。
 	parentList 保存整个二维链表的所有订单，第一维以价格排序，第二维以时间排序。
-	elementMap 则是 Key 为价格、Value 为第二维订单链表的键值对。
+	elementMap 则是 Key 为价格、Value 二维map订单。
  */
 type orderQueue struct {
 	sortBy     enum.SortDirection
 	parentList *list.List
-	elementMap map[string]*list.List // 主要是用来查询top5，用price作为价格更方便
+	elementMap map[float64]map[string]*Order // 主要是用来查询top5，用price作为价格更方便
 }
 
 // 初始化函数
 func (q *orderQueue) init(sortBy enum.SortDirection) {
 	q.sortBy = sortBy
 	q.parentList = list.New()
-	q.elementMap = make(map[string]*list.List)
+	q.elementMap = make(map[float64]map[string]*Order)
 }
 
 // 把订单插入到链表中
@@ -86,11 +87,11 @@ func (q *orderQueue) addOrder(order *Order) {
 	}
 
 	// 插入价格map
-	price := order.Price.String()
+	price, _ := order.Price.Float64()
 	if _, ok := q.elementMap[price]; !ok {
-		q.elementMap[price] = list.New()
+		q.elementMap[price] = make(map[string]*Order)
 	}
-	q.elementMap[price].PushBack(order)
+	q.elementMap[price][order.OrderId] = order
 }
 
 // 从委托账本中查询头部订单
@@ -150,28 +151,111 @@ func (q *orderQueue) showAllOrder() {
 	}
 }
 
-// 删除element账本中的订单
-func (q *orderQueue) removeElementOrder(order *Order) {
-	price := order.Price.String()
+// 更新element账本中的订单
+func (q *orderQueue) updateElementOrder(order *Order) bool {
+	price, _ := order.Price.Float64()
+	orderId := order.OrderId
+	// 判断是否在map中
+	_, err := q.elementMap[price][orderId]
+	if !err {
+		return false
+	}
+	q.elementMap[price][orderId] = order
 
+	return true
+}
+
+// 删除element账本中的订单
+func (q *orderQueue) removeElementOrder(order *Order) bool {
+	price, _ := order.Price.Float64()
+	orderId := order.OrderId
+	// 判断是否在map中
+	_, err := q.elementMap[price][orderId]
+	if !err {
+		return false
+	}
+
+	delete(q.elementMap[price], orderId)
+	// 如果没有了就置空
+	if len(q.elementMap[price]) == 0 {
+		q.elementMap[price] = nil
+	}
+
+	return true
+}
+
+// 获取topN的价格和数量
+func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
+	var keys []float64
+	// 用有序list保存返回数据
+	topMap := list.New()
+	// 把elementMap的key进行排序
+	for k := range q.elementMap {
+		keys = append(keys, k)
+	}
+	// 卖升买降
+	if q.sortBy == enum.SortDesc {
+		sort.Sort(sort.Reverse(sort.Float64Slice(keys))) // 降序
+	} else {
+		sort.Float64s(keys) // 升序
+	}
+	// 循环keys，找到当前价格的N档
+	for _, v := range keys {
+		num--
+		if num < 0 {
+			break
+		}
+		if q.sortBy == enum.SortDesc {
+			// 买单判断小于
+			if v <= nowPrice {
+				// 循环所有订单，把数量相加
+				amount := 0.0
+				for _, val := range q.elementMap[v] {
+					a, _ := val.Amount.Float64()
+					amount += a
+				}
+				sTopN := PriceTopN{
+					Price: v,
+					Amount: amount,
+				}
+				topMap.PushBack(sTopN)
+			}
+		} else {
+			// 卖单判断大于
+			if v >= nowPrice {
+				// 循环所有订单，把数量相加
+				amount := 0.0
+				for _, val := range q.elementMap[v] {
+					a, _ := val.Amount.Float64()
+					amount += a
+				}
+				sTopN := PriceTopN{
+					Price: v,
+					Amount: amount,
+				}
+				topMap.PushFront(sTopN)
+			}
+		}
+	}
+	return topMap
 }
 
 // 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。
-func (q *orderQueue) getDepthPrice(depth int) (string, int) {
-	if q.parentList.Len() == 0 {
-		return "", 0
-	}
-	p := q.parentList.Front()
-	i := 1
-	for ; i < depth; i++ {
-		t := p.Next()
-		if t != nil {
-			p = t
-		} else {
-			break
-		}
-	}
-	o := p.Value.(*Order)
-	return o.Price.String(), i
-}
+//func (q *orderQueue) getDepthPrice(depth int) (string, int) {
+//	if q.parentList.Len() == 0 {
+//		return "", 0
+//	}
+//	p := q.parentList.Front()
+//	i := 1
+//	for ; i < depth; i++ {
+//		t := p.Next()
+//		if t != nil {
+//			p = t
+//		} else {
+//			break
+//		}
+//	}
+//	o := p.Value.(*Order)
+//	return o.Price.String(), i
+//}
 

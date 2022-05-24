@@ -5,45 +5,42 @@ import (
 	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/common"
+	"strconv"
 	"time"
 )
 
 // 重新生成topN，保存redis
 func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, num int) {
-	// topN直接从交易委托账本中生成，这里可能需要优化，后期再说
-	// 理论上头部买单！=头部卖单价格，基本逻辑就是
-	// 如果头部买单=当前价格
-	//		头部卖单>当前价格，从买单里面取出num个，从卖单里面取出num个
-	// 如果头部买单<当前价格
-	//		头部卖单=当前价格，从买单里面取出num个，从卖单里面取出num个
-	//		头部卖单>当前价格，从买单里面取出num个，从卖单里面取出num-1个
-	// 总结就是都取num个
-
-	var topMap = make(map[string]interface{})
-	for i:=0; i<num; i++ {
-		order := book.GetHeadBuyOrder()
-		if order != nil {
-			p := order.Price.String()
-			topMap[p] = order.Amount.String()
+	// topN从elementMap来
+	data := make(map[string]interface{})
+	fprice, _ := price.Float64()
+	buyList := book.GetBuyTopN(fprice, num)
+	if buyList.Len() >0 {
+		for e := buyList.Front(); e != nil; e = e.Next() {
+			topData := e.Value.(*model.PriceTopN)
+			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
+			data[sprice] = topData.Amount
 		}
 	}
-	for i:=0; i<num; i++ {
-		order := book.GetHeadSellOrder()
-		if order != nil {
-			p := order.Price.String()
-			topMap[p] = order.Amount.String()
+	// 判断当前价格是否在data中
+	nowPrice := price.String()
+	if _, err := data[nowPrice]; err {
+		data[nowPrice] = 0.0
+	}
+	sellList := book.GetBuyTopN(fprice, num)
+	if sellList.Len() >0 {
+		for e := sellList.Front(); e != nil; e = e.Next() {
+			topData := e.Value.(*model.PriceTopN)
+			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
+			data[sprice] = topData.Amount
 		}
 	}
-	fprice := price.String()
-	if _, ok := topMap[fprice]; !ok {
-		topMap[fprice] = "0"
-	}
 
-	cache.SetTopN(symbol, num, topMap)
+	cache.SetTopN(symbol, num, data)
 }
 
-// 重新生成k线图
-func handleKData() {
+// 生成k线图，1分钟生成一次
+func handleKData(symbol string, kDataPrice *model.KDataPrice) {
 	defer func() { recover() }()
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
@@ -51,10 +48,25 @@ func handleKData() {
 		select {
 		case <-ticker.C:
 			common.Debugs("开始计算K线图")
-			// 从交易记录中读取最近一分钟的数据
+			topPrice, _ := kDataPrice.TopPrice.Float64()
+			bottomPrice, _ := kDataPrice.BottomPrice.Float64()
+			nowPrice, _ := kDataPrice.NowPrice.Float64()
 
+			currentSecond := time.Now().Second()
+			time := time.Now().UnixMicro() - int64(currentSecond)
+			// 转成float64
+			timestamp := float64(time)
+			// 取出当前的实时价格
+			kData := model.KData{
+				TopPrice: topPrice,
+				BottomPrice: bottomPrice,
+				NowPrice: nowPrice,
+				Timestamp: timestamp,
+			}
+			kDataJson := common.ToJson(kData)
+			cache.SetKData(symbol, timestamp, kDataJson)
 
-		case <-stopKDataChan:
+		case <-StopKDataChan:
 			common.Debugs("K线图计算线程关闭")
 			return
 		}

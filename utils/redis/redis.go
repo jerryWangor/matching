@@ -202,8 +202,8 @@ func GetCancelResult(symbol string) map[string]string {
 	result := redisClient.XRevRange(stream, "+", "-")
 	val, _ := result.Result()
 	for _, v := range val {
-		json, _ := json.Marshal(v.Values)
-		strMap[v.ID] = string(json)
+		jsons, _ := json.Marshal(v.Values)
+		strMap[v.ID] = string(jsons)
 	}
 	return strMap
 }
@@ -214,8 +214,8 @@ func GetTradeResult(symbol string) map[string]string {
 	result := redisClient.XRevRange(stream, "+", "-")
 	val, _ := result.Result()
 	for _, v := range val {
-		json, _ := json.Marshal(v.Values)
-		strMap[v.ID] = string(json)
+		jsons, _ := json.Marshal(v.Values)
+		strMap[v.ID] = string(jsons)
 	}
 	return strMap
 }
@@ -234,5 +234,23 @@ func GetTopN(symbol string, num int) map[string]interface{} {
 	for k, v := range result {
 		orderMap[k] = v
 	}
+	return orderMap
+}
+
+// SetKData kdata把数据存成json，以timestamp排序
+func SetKData(symbol string, timestamp float64, data string) {
+	// Zset(sorted_set类型) 创建以timestamp排序的数据
+	key := "kdata:z:" + symbol
+	z := &redis.Z{
+		Score:  timestamp,
+		Member: data,
+	}
+	redisClient.ZAdd(key, *z)
+}
+
+// GetKData 查询一段时间内的所有kdata
+func GetKData(symbol string, time1, time2 float64) map[float64]interface{} {
+	var orderMap = make(map[float64]interface{})
+
 	return orderMap
 }

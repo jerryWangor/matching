@@ -6,6 +6,7 @@ import (
 	"matching/config"
 	"matching/engine"
 	"matching/utils/code"
+	"matching/utils/common"
 	"matching/utils/redis"
 	"net/http"
 )
@@ -33,6 +34,12 @@ func CloseMatching(c *gin.Context) {
 	// 判断是否为空
 	if closeMatch.Symbol == "" {
 		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_PARAMS_ERROR, "msg": "交易标参数不能为空"})
+		return
+	}
+
+	// 判断是否在allow里面
+	if !common.InArray(closeMatch.Symbol, AllowSymbol) {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_NOTIN_ALLOWLIST, "msg": "交易标不在允许列表中"})
 		return
 	}
 

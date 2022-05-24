@@ -84,14 +84,24 @@ func GetOrderIdsWithSymbol(symbol string) []string {
 	return cache.GetOrderIdsWithSymbol(symbol)
 }
 
-// SetTopN TopN
+// SetTopN 设置topN
 func SetTopN(symbol string, num int, data map[string]interface{}) {
 	// topN打算用有序集合进行保存
 	cache.SetTopN(symbol, num, data)
 }
 
-// SetTopN TopN
+// GetTopN 获取topN
 func GetTopN(symbol string, num int) map[string]interface{} {
 	// topN打算用有序集合进行保存
 	return cache.GetTopN(symbol, num)
+}
+
+// SetKData 设置kdata
+func SetKData(symbol string, timestamp float64, data string) {
+	cache.SetKData(symbol, timestamp, data)
+}
+
+// GetKData 获取kdata
+func GetKData(symbol string, time1, time2 float64) map[float64]interface{} {
+	return cache.GetKData(symbol, time1, time2)
 }

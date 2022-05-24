@@ -12,7 +12,9 @@ var OrderChanMap map[string]chan model.Order
 
 var AllOrderBookMap map[string]*model.OrderBook
 
-var stopKDataChan chan bool
+var StopKDataChan chan bool
+
+var KDataPriceMap map[string]*model.KDataPrice
 
 // Init 初始化，从redis中恢复一些东西
 func Init() {
@@ -23,8 +25,11 @@ func Init() {
 	// 定义所有的交易委托账本map
 	AllOrderBookMap = make(map[string]*model.OrderBook)
 
-	// 定义k线图通道
-	stopKDataChan = make(chan bool, 1)
+	// 定义k线图开关通道
+	StopKDataChan = make(chan bool, 1)
+
+	// 定义价格map
+	KDataPriceMap = make(map[string]*model.KDataPrice)
 
 	// 从redis中查询所有已开启的交易标引擎，并重新开启
 	symbols := cache.GetSymbols()

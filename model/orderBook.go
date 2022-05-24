@@ -1,6 +1,7 @@
 package model
 
 import (
+	"container/list"
 	"matching/utils/enum"
 )
 
@@ -36,12 +37,12 @@ func (o *OrderBook) GetHeadSellOrder() *Order {
 	return o.sellOrderQueue.getHeadOrder()
 }
 
-// PopHeadBuyOrder 抛出头部买单
+// PopHeadBuyOrder 抛出头部买单（删除）
 func (o *OrderBook) PopHeadBuyOrder() *Order {
 	return o.buyOrderQueue.popHeadOrder()
 }
 
-// PopHeadSellOrder 抛出头部卖单
+// PopHeadSellOrder 抛出头部卖单（删除）
 func (o *OrderBook) PopHeadSellOrder() *Order {
 	return o.sellOrderQueue.popHeadOrder()
 }
@@ -56,12 +57,12 @@ func (o *OrderBook) UpdateHeadSellOrder(order *Order) error {
 	return o.sellOrderQueue.updateHeadOrder(order)
 }
 
-// RemoveHeadBuyOrder 删除买单
+// RemoveHeadBuyOrder 删除头部买单
 func (o *OrderBook) RemoveHeadBuyOrder() {
 	o.buyOrderQueue.popHeadOrder()
 }
 
-// RemoveHeadSellOrder 删除买单
+// RemoveHeadSellOrder 删除头部卖单
 func (o *OrderBook) RemoveHeadSellOrder() {
 	o.sellOrderQueue.popHeadOrder()
 }
@@ -76,6 +77,7 @@ func (o *OrderBook) RemoveSellOrder(order *Order) bool {
 	return o.sellOrderQueue.removeOrder(order)
 }
 
+// 展示所有订单
 func (o *OrderBook) ShowAllBuyOrder() {
 	o.buyOrderQueue.showAllOrder()
 }
@@ -84,11 +86,29 @@ func (o *OrderBook) ShowAllSellOrder() {
 	o.sellOrderQueue.showAllOrder()
 }
 
-// 获取买卖单的topN的价格
-func (o *OrderBook) GetBuyDepthPrice(num int) (string, int) {
-	return o.buyOrderQueue.getDepthPrice(num)
+// 更新top订单
+func (o *OrderBook) UpdateBuyElementOrder(order *Order) bool {
+	return o.buyOrderQueue.updateElementOrder(order)
 }
 
-func (o *OrderBook) GetSellDepthPrice(num int) (string, int) {
-	return o.sellOrderQueue.getDepthPrice(num)
+func (o *OrderBook) UpdateSellElementOrder(order *Order) bool {
+	return o.sellOrderQueue.updateElementOrder(order)
+}
+
+// 删除
+func (o *OrderBook) RemoveBuyElementOrder(order *Order) bool {
+	return o.buyOrderQueue.removeElementOrder(order)
+}
+
+func (o *OrderBook) RemoveSellElementOrder(order *Order) bool {
+	return o.sellOrderQueue.removeElementOrder(order)
+}
+
+// 获取买卖单的topN的价格
+func (o *OrderBook) GetBuyTopN(price float64, num int) *list.List {
+	return o.buyOrderQueue.getTopN(price, num)
+}
+
+func (o *OrderBook) GetSellTopN(price float64, num int) *list.List {
+	return o.sellOrderQueue.getTopN(price, num)
 }
