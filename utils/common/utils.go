@@ -32,9 +32,13 @@ func GetNowDate() string {
 
 // TimeStampToString 时间戳转年季月时分秒字符串
 func TimeStampToString(timestamp int64) string {
-	time1 := timestamp / 1000000
-	time2 := timestamp % 1000000
-	return time.Unix(time1,0).Format("2006-01-02 15:04:05") + "+" + strconv.FormatInt(time2, 10)
+	if timestamp > 10000000000 {
+		time1 := timestamp / 1000000
+		time2 := timestamp % 1000000
+		return time.Unix(time1,0).Format("2006-01-02 15:04:05") + "+" + strconv.FormatInt(time2, 10)
+	} else {
+		return time.Unix(timestamp,0).Format("2006-01-02 15:04:05")
+	}
 }
 
 // GetWheres 获取where条件

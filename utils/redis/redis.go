@@ -6,9 +6,12 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/shopspring/decimal"
 	"github.com/spf13/viper"
+	"matching/model"
+	"matching/utils/common"
 	"matching/utils/enum"
 	"matching/utils/log"
 	"strconv"
+	"strings"
 )
 
 var redisClient *redis.Client
@@ -135,7 +138,8 @@ func UpdateOrder(order map[string]interface{}) {
 func RemoveOrder(order map[string]interface{}) error {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	action := enum.OrderAction(order["action"].(int)).String()
+	//action := enum.OrderAction(order["action"].(int)).String()
+	action := enum.ActionCreate.String()
 	// 删除hash
 	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	result := redisClient.Del(key)
@@ -166,7 +170,7 @@ func OrderExist(symbol, orderId, action string) bool {
 
 func GetOrderIdsWithSymbol(symbol string) []string {
 	key := "matching:z:orderids:" + symbol
-	return redisClient.ZRange(key, 0, 10).Val()
+	return redisClient.ZRange(key, 0, -1).Val()
 }
 
 
@@ -223,34 +227,56 @@ func GetTradeResult(symbol string) map[string]string {
 //  TopN K线图
 func SetTopN(symbol string, num int, data map[string]interface{}) {
 	// topN打算用有序集合进行保存
-	key := "top" + strconv.Itoa(num) + ":h:symbol:" + symbol
-	redisClient.HMSet(key, data)
+	key := "data:top" + strconv.Itoa(num) + ":s:symbol:" + symbol
+	redisClient.Set(key, common.ToJson(data), 0)
 }
 
 func GetTopN(symbol string, num int) map[string]interface{} {
 	var orderMap = make(map[string]interface{})
-	key := "top" + strconv.Itoa(num) + ":h:symbol:" + symbol
-	result, _ := redisClient.HGetAll(key).Result()
-	for k, v := range result {
-		orderMap[k] = v
+	key := "data:top" + strconv.Itoa(num) + ":s:symbol:" + symbol
+	result, er := redisClient.Get(key).Result()
+	if er != nil {
+		log.Error("TopN 缓存获取失败，" + er.Error())
+		return orderMap
+	}
+	err := json.Unmarshal([]byte(result), &orderMap)
+	if err != nil {
+		log.Error("TopN 数据解析失败")
 	}
 	return orderMap
 }
 
 // SetKData kdata把数据存成json，以timestamp排序
-func SetKData(symbol string, timestamp float64, data string) {
+func SetKData(symbol string, timestamp int64, data string) {
 	// Zset(sorted_set类型) 创建以timestamp排序的数据
-	key := "kdata:z:" + symbol
+	key := "data:kdata:z:" + symbol
 	z := &redis.Z{
-		Score:  timestamp,
+		Score:  float64(timestamp),
 		Member: data,
 	}
 	redisClient.ZAdd(key, *z)
 }
 
 // GetKData 查询一段时间内的所有kdata
-func GetKData(symbol string, time1, time2 float64) map[float64]interface{} {
-	var orderMap = make(map[float64]interface{})
-
+func GetKData(symbol string, time1, time2 int64) map[int64]model.KData {
+	var orderMap = make(map[int64]model.KData)
+	key := "data:kdata:z:" + symbol
+	stime1 := strconv.FormatInt(time1, 10)
+	stime2 := strconv.FormatInt(time2, 10)
+	z := &redis.ZRangeBy{
+		Min: stime1,
+		Max: stime2,
+	}
+	result := redisClient.ZRangeByScore(key, *z)
+	value, err := result.Result()
+	if err != nil {
+		log.Error("获取KData失败：" + err.Error())
+	}
+	for _, v := range value {
+		var kdata model.KData
+		dec := json.NewDecoder(strings.NewReader(v))
+		dec.Decode(&kdata)
+		orderMap[kdata.Timestamp] = kdata
+	}
 	return orderMap
 }

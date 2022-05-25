@@ -11,31 +11,35 @@ import (
 
 // 重新生成topN，保存redis
 func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, num int) {
+
+	//fmt.Println("分割线")
 	// topN从elementMap来
 	data := make(map[string]interface{})
 	fprice, _ := price.Float64()
 	buyList := book.GetBuyTopN(fprice, num)
+	//fmt.Println("买单数量", buyList.Len())
 	if buyList.Len() >0 {
 		for e := buyList.Front(); e != nil; e = e.Next() {
-			topData := e.Value.(*model.PriceTopN)
+			topData := e.Value.(model.PriceTopN)
 			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
 			data[sprice] = topData.Amount
 		}
 	}
 	// 判断当前价格是否在data中
 	nowPrice := price.String()
-	if _, err := data[nowPrice]; err {
+	if _, ok := data[nowPrice]; !ok {
 		data[nowPrice] = 0.0
 	}
-	sellList := book.GetBuyTopN(fprice, num)
+	sellList := book.GetSellTopN(fprice, num)
 	if sellList.Len() >0 {
 		for e := sellList.Front(); e != nil; e = e.Next() {
-			topData := e.Value.(*model.PriceTopN)
+			topData := e.Value.(model.PriceTopN)
 			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
 			data[sprice] = topData.Amount
 		}
 	}
 
+	//fmt.Println("topdata", data)
 	cache.SetTopN(symbol, num, data)
 }
 
@@ -48,19 +52,13 @@ func handleKData(symbol string, kDataPrice *model.KDataPrice) {
 		select {
 		case <-ticker.C:
 			common.Debugs("开始计算K线图")
-			topPrice, _ := kDataPrice.TopPrice.Float64()
-			bottomPrice, _ := kDataPrice.BottomPrice.Float64()
-			nowPrice, _ := kDataPrice.NowPrice.Float64()
-
 			currentSecond := time.Now().Second()
-			time := time.Now().UnixMicro() - int64(currentSecond)
-			// 转成float64
-			timestamp := float64(time)
+			timestamp := time.Now().Unix() - int64(currentSecond)
 			// 取出当前的实时价格
 			kData := model.KData{
-				TopPrice: topPrice,
-				BottomPrice: bottomPrice,
-				NowPrice: nowPrice,
+				TopPrice: kDataPrice.TopPrice,
+				BottomPrice: kDataPrice.BottomPrice,
+				NowPrice: kDataPrice.NowPrice,
 				Timestamp: timestamp,
 			}
 			kDataJson := common.ToJson(kData)

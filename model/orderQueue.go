@@ -54,6 +54,13 @@ func (q *orderQueue) init(sortBy enum.SortDirection) {
 // 把订单插入到链表中
 func (q *orderQueue) addOrder(order *Order) {
 
+	// 先插入价格map
+	price, _ := order.Price.Float64()
+	if _, ok := q.elementMap[price]; !ok {
+		q.elementMap[price] = make(map[string]*Order)
+	}
+	q.elementMap[price][order.OrderId] = order
+
 	// 如果队列长度是0，就直接放到第一个
 	if q.parentList.Len() == 0 {
 		q.parentList.PushFront(order)
@@ -85,13 +92,6 @@ func (q *orderQueue) addOrder(order *Order) {
 	if eKey != nil {
 		q.parentList.InsertAfter(order, eKey)
 	}
-
-	// 插入价格map
-	price, _ := order.Price.Float64()
-	if _, ok := q.elementMap[price]; !ok {
-		q.elementMap[price] = make(map[string]*Order)
-	}
-	q.elementMap[price][order.OrderId] = order
 }
 
 // 从委托账本中查询头部订单
@@ -170,8 +170,7 @@ func (q *orderQueue) removeElementOrder(order *Order) bool {
 	price, _ := order.Price.Float64()
 	orderId := order.OrderId
 	// 判断是否在map中
-	_, err := q.elementMap[price][orderId]
-	if !err {
+	if _, ok := q.elementMap[price][orderId]; !ok {
 		return false
 	}
 
@@ -200,6 +199,7 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 		sort.Float64s(keys) // 升序
 	}
 	// 循环keys，找到当前价格的N档
+	//fmt.Println("keys", keys, nowPrice)
 	for _, v := range keys {
 		num--
 		if num < 0 {
@@ -233,11 +233,17 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 					Price: v,
 					Amount: amount,
 				}
-				topMap.PushFront(sTopN)
+				//fmt.Println("卖单数据：", sTopN.Price, sTopN.Amount)
+				topMap.PushBack(sTopN)
 			}
 		}
 	}
 	return topMap
+}
+
+// 获取top价格
+func (q *orderQueue) getElementMap() map[float64]map[string]*Order {
+	return q.elementMap
 }
 
 // 读取深度价格是为了方便处理 market-opponent、market-top5、market-top10 等类型的订单时判断上限价格。

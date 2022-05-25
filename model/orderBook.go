@@ -112,3 +112,13 @@ func (o *OrderBook) GetBuyTopN(price float64, num int) *list.List {
 func (o *OrderBook) GetSellTopN(price float64, num int) *list.List {
 	return o.sellOrderQueue.getTopN(price, num)
 }
+
+
+// 获取topN源数据
+func (o *OrderBook) GetBuyElementMap() map[float64]map[string]*Order {
+	return o.buyOrderQueue.getElementMap()
+}
+
+func (o *OrderBook) GetSellElementMap() map[float64]map[string]*Order {
+	return o.sellOrderQueue.getElementMap()
+}

@@ -64,6 +64,13 @@ func Run(symbol string, price decimal.Decimal) {
 			return
 		}
 		log.Info("engine %s receive an order: %s", symbol, common.ToJson(order))
+		// 如果价格等于0，设置成第一个买单的价格
+		if KDataPriceMap[symbol].NowPrice.IsZero() && order.Side == enum.SideBuy {
+			KDataPriceMap[symbol].TopPrice = order.Price
+			KDataPriceMap[symbol].BottomPrice = order.Price
+			KDataPriceMap[symbol].NowPrice = order.Price
+			cache.SavePrice(symbol, KDataPriceMap[symbol].NowPrice)
+		}
 		switch order.Action {
 		case enum.ActionCreate:
 			dealCreate(&order, book, KDataPriceMap[symbol])
@@ -72,7 +79,7 @@ func Run(symbol string, price decimal.Decimal) {
 		}
 
 		// top先同步进行处理，后期可以考虑用通道异步处理
-		handleTopN(symbol, &price, book, 5)
+		handleTopN(symbol, &KDataPriceMap[symbol].NowPrice, book, 5)
 	}
 }
 
@@ -193,6 +200,7 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 	// 更新价格，这里是取地址，如果后面有问题可能要修改
 	kDataPrice.NowPrice = headOrder.Price
 	common.Debugs(fmt.Sprintf("当前价格更新为：%s", kDataPrice.NowPrice.String()))
+	cache.SavePrice(order.Symbol, kDataPrice.NowPrice)
 	// 判断价格
 	if kDataPrice.NowPrice.GreaterThan(kDataPrice.TopPrice) {
 		kDataPrice.TopPrice = kDataPrice.NowPrice
@@ -218,25 +226,32 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 // 撤单处理
 func dealCancel(order *model.Order, book *model.OrderBook) {
 	// 撤单直接删除redis，从交易委托账本里面移除
-	var result bool
+	var result, eResult, cres bool
+	// 从缓存取出订单
+	newOrder := cache.GetOrder(order.Symbol, order.OrderId, enum.ActionCreate.String())
 	// 先删除账本里面的，这里买单如果传action=1，side=1的话，就不会删除账本里的，然后就会出问题
 	if order.Side == enum.SideBuy {
-		result = book.RemoveBuyOrder(order)
+		result = book.RemoveBuyOrder(&newOrder)
 		// 删除element账本中该头部订单
-		book.RemoveBuyElementOrder(order)
+		eResult = book.RemoveBuyElementOrder(&newOrder)
 	} else {
-		result = book.RemoveSellOrder(order)
+		result = book.RemoveSellOrder(&newOrder)
 		// 删除element账本中该头部订单
-		book.RemoveSellElementOrder(order)
+		eResult = book.RemoveSellElementOrder(&newOrder)
 	}
 	if result == true {
 		common.Debugs(fmt.Sprintf("交易委托账本中的订单删除成功！%s-%s", order.Symbol, order.OrderId))
 	} else {
 		log.Error(fmt.Sprintf("交易委托账本中的订单删除失败！%s-%s", order.Symbol, order.OrderId))
 	}
+	if eResult == true {
+		common.Debugs(fmt.Sprintf("TopN数据中的订单删除成功！%s-%s", order.Symbol, order.OrderId))
+	} else {
+		log.Error(fmt.Sprintf("TopN数据中的订单删除失败！%s-%s", order.Symbol, order.OrderId))
+	}
 
 	// 缓存删除状态
-	cres := cache.RemoveOrder(*order)
+	cres = cache.RemoveOrder(newOrder)
 	if cres == true {
 		common.Debugs(fmt.Sprintf("订单缓存删除成功：%s-%s", order.Symbol, order.OrderId))
 	} else {
@@ -244,7 +259,9 @@ func dealCancel(order *model.Order, book *model.OrderBook) {
 	}
 
 	// 账本和缓存都删除成功了才算撤单成功
-	if result == true && cres == true {
+	if result == true && cres == true && eResult == true {
+		// 删除缓存中的cancel订单
+		cache.RemoveOrder(*order)
 		mq.SendCancelResult(order.Symbol, order.OrderId, true)
 	} else {
 		mq.SendCancelResult(order.Symbol, order.OrderId, false)

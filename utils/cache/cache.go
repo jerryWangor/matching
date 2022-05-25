@@ -97,11 +97,11 @@ func GetTopN(symbol string, num int) map[string]interface{} {
 }
 
 // SetKData 设置kdata
-func SetKData(symbol string, timestamp float64, data string) {
+func SetKData(symbol string, timestamp int64, data string) {
 	cache.SetKData(symbol, timestamp, data)
 }
 
 // GetKData 获取kdata
-func GetKData(symbol string, time1, time2 float64) map[float64]interface{} {
+func GetKData(symbol string, time1, time2 int64) map[int64]model.KData {
 	return cache.GetKData(symbol, time1, time2)
 }

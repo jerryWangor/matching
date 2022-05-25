@@ -8,7 +8,10 @@ import (
 	"matching/utils/cache"
 	"matching/utils/common"
 	"matching/utils/mq"
+	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 func ShowLogs(c *gin.Context) {
@@ -33,6 +36,7 @@ func ShowLogs(c *gin.Context) {
 	// 缓存相关
 	common.Debugs("----------Start 打印缓存相关数据----------")
 	symbols := cache.GetSymbols()
+
 	for _, v := range symbols {
 		price := cache.GetPrice(v)
 		common.Debugs("交易标："+ v + "，价格：" + price.String() + ",包含订单如下：")
@@ -73,18 +77,59 @@ func ShowLogs(c *gin.Context) {
 		v.ShowAllBuyOrder()
 		common.Debugs("卖单：")
 		v.ShowAllSellOrder()
+
+		common.Debugs("买单TopN数据：")
+		buyElementMap := v.GetBuyElementMap()
+		if len(buyElementMap) >0 {
+			var keys []float64
+			for time, _ := range buyElementMap {
+				keys = append(keys, time)
+			}
+			sort.Float64s(keys)
+			for _, m := range keys {
+				common.Debugs("价格：" + strconv.FormatFloat(m, 'E', -1, 64))
+				for oid, order := range buyElementMap[m] {
+					common.Debugs("订单号：" + oid + "，数量：" + order.Amount.String())
+				}
+			}
+		}
+
+		common.Debugs("卖单TopN数据：")
+		sellElementMap := v.GetSellElementMap()
+		if len(sellElementMap) >0 {
+			var keys []float64
+			for time, _ := range sellElementMap {
+				keys = append(keys, time)
+			}
+			sort.Float64s(keys)
+			for _, m := range keys {
+				common.Debugs("价格：" + strconv.FormatFloat(m, 'E', -1, 64))
+				for oid, order := range sellElementMap[m] {
+					common.Debugs("订单号：" + oid + "，数量：" + order.Amount.String())
+				}
+			}
+		}
 	}
 	common.Debugs("----------End 打印交易委托账本相关数据----------")
 
+	// K线图
 	common.Debugs("----------Start TopN  K线图----------")
-	//for _, v := range symbols {
-	//	topMap := cache.GetTopN(v, 5)
-	//	common.Debugs(common.ToJson(topMap))
-	//}
+	for _, v := range symbols {
+		common.Debugs("Top5：")
+		topMap := cache.GetTopN(v, 5)
+		common.Debugs(common.ToJson(topMap))
 
-
+		// 取最近10分钟的k线图
+		common.Debugs("K线图：")
+		currentSecond := time.Now().Second()
+		time2 := time.Now().Unix() - int64(currentSecond)
+		time1 := time2 - 600
+		kData := cache.GetKData(v, time1, time2)
+		for _, v := range kData {
+			common.Debugs("最高价：" + v.TopPrice.String() + "，最低价：" + v.BottomPrice.String() + "，最高价：" + v.NowPrice.String() + "，时间：" + common.TimeStampToString(v.Timestamp))
+		}
+	}
 	common.Debugs("----------End TopN  K线图----------")
-
 
 }
 
