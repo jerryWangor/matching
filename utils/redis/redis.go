@@ -138,8 +138,8 @@ func UpdateOrder(order map[string]interface{}) {
 func RemoveOrder(order map[string]interface{}) error {
 	symbol := order["symbol"].(string)
 	orderId := order["orderId"].(string)
-	//action := enum.OrderAction(order["action"].(int)).String()
-	action := enum.ActionCreate.String()
+	action := enum.OrderAction(order["action"].(int)).String()
+	//action := enum.ActionCreate.String()
 	// 删除hash
 	key := "matching:h:order:" + symbol + ":" + orderId + ":" + action
 	result := redisClient.Del(key)

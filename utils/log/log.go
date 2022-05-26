@@ -35,7 +35,7 @@ type FileLogger struct {
 	lfInfo         *os.File        // 日志文件
 	lfWarn         *os.File        // 日志文件
 	lfError        *os.File        // 日志文件
-	bufDebug       *bufio.Writer   // 日志缓冲
+	bufDebug       *bufio.Writer   // 日志缓冲，用这个要超时，大概几十秒吧，就成不成功了：write E:\matching\matching\logs\debug\file-2022-05-26.log: file already closed
 	bufInfo        *bufio.Writer   // 日志缓冲
 	bufWarn        *bufio.Writer   // 日志缓冲
 	bufError       *bufio.Writer   // 日志缓冲
@@ -232,8 +232,9 @@ func (f *FileLogger) logWriter() {
 		fbuf.WriteString(content.content)
 		fbuf.WriteString("\n")
 		fbuf.Flush() // flush把缓存中的内容写到文件中
-
+		//fmt.Println("写入文件", fbuf, content)
 		f.mu.RUnlock()
+
 
 		if config.LogPrintLn {
 			log.Println(content.content)
@@ -276,18 +277,18 @@ func (f *FileLogger) split() error {
 	defer f.mu.Unlock()
 
 	// 先关闭文件连接
-	if f.lfDebug != nil {
-		f.lfDebug.Close()
-	}
-	if f.lfInfo != nil {
-		f.lfDebug.Close()
-	}
-	if f.lfWarn != nil {
-		f.lfDebug.Close()
-	}
-	if f.lfError != nil {
-		f.lfDebug.Close()
-	}
+	//if f.lfDebug != nil {
+	//	f.lfDebug.Close()
+	//}
+	//if f.lfInfo != nil {
+	//	f.lfDebug.Close()
+	//}
+	//if f.lfWarn != nil {
+	//	f.lfDebug.Close()
+	//}
+	//if f.lfError != nil {
+	//	f.lfDebug.Close()
+	//}
 
 	// 重新设置时间
 	t, _ := time.Parse(DateFormat, time.Now().Format(DateFormat))

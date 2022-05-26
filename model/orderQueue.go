@@ -178,6 +178,7 @@ func (q *orderQueue) removeElementOrder(order *Order) bool {
 	// 如果没有了就置空
 	if len(q.elementMap[price]) == 0 {
 		q.elementMap[price] = nil
+		delete(q.elementMap, price)
 	}
 
 	return true
