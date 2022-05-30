@@ -79,12 +79,16 @@ func Run(symbol string, price decimal.Decimal) {
 		}
 
 		// top先同步进行处理，后期可以考虑用通道异步处理
-		handleTopN(symbol, &KDataPriceMap[symbol].NowPrice, book, 5)
+		handleTopN(symbol, &KDataPriceMap[symbol].NowPrice, book, 100)
 	}
 }
 
 // 挂单处理
 func dealCreate(order *model.Order, book *model.OrderBook, kDataPrice *model.KDataPrice) {
+
+	// 订单存量
+	//AllOrderAmountMap[order.Side.String()] = AllOrderAmountMap[order.Side.String()].Add(order.Amount)
+
 	switch order.Type {
 	case enum.TypeLimit:
 		dealLimit(order, book, kDataPrice)
@@ -151,9 +155,20 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 
 	// 如果当前单数量>=头部订单数量，那么就把头部订单完全吃掉
 	if order.Amount.GreaterThanOrEqual(headOrder.Amount) {
-		common.Debugs("当前订单数量>=头部订单")
+		common.Debugs(order.Side.String() + "，当前订单数量>=头部订单")
 		useAmount = headOrder.Amount
 		order.Amount = order.Amount.Sub(headOrder.Amount)
+		// 如果当前订单等于0就要从缓存中删除
+		if order.Amount.IsZero() {
+			// 删除
+			cache.RemoveOrder(*order)
+		} else {
+			// 更新
+			cache.UpdateOrder(*order)
+		}
+		// 把头部订单从缓存中去掉
+		cache.RemoveOrder(*headOrder)
+
 		if order.Side == enum.SideBuy {
 			// 把头部订单从交易委托账本中去掉
 			book.PopHeadSellOrder()
@@ -165,17 +180,12 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 			// 删除element账本中该头部订单
 			book.RemoveBuyElementOrder(headOrder)
 		}
-		// 把头部订单从缓存中去掉
-		cache.RemoveOrder(*headOrder)
-		// 更新当前订单缓存
-		cache.UpdateOrder(*order)
 	} else {
-		common.Debugs("当前订单数量<头部订单")
+		common.Debugs(order.Side.String() + "，当前订单数量<头部订单")
 		// 如果买单数量<头部订单数量，那么就只消耗了买单数量
 		useAmount = order.Amount
 		order.Amount = order.Amount.Sub(order.Amount)
 		headOrder.Amount = headOrder.Amount.Sub(useAmount)
-		//common.Debugs(fmt.Sprintf("order amount：%s， head amount：%s", order.Amount.String(), headOrder.Amount.String()))
 		// 删除当前订单缓存
 		cache.RemoveOrder(*order)
 		// 更新头部订单缓存
@@ -221,25 +231,49 @@ func matchTrade(headOrder *model.Order, order *model.Order, book *model.OrderBoo
 	tradeMap := trade.ToMap()
 	common.Debugs("交易记录：" + common.ToJson(trade))
 	mq.SendTradeResult(order.Symbol, tradeMap)
+
+	// 更新存量
+	//if order.Side == enum.SideBuy {
+	//	// 买吃卖，更新卖的
+	//	AllOrderAmountMap[enum.SideSell.String()] = AllOrderAmountMap[enum.SideSell.String()].Sub(useAmount).Sub(useAmount)
+	//} else {
+	//	AllOrderAmountMap[enum.SideBuy.String()] = AllOrderAmountMap[enum.SideBuy.String()].Sub(useAmount).Sub(useAmount)
+	//}
 }
 
-// 撤单处理
+// 撤单处理，如果中间有失败，就进行事务回滚
 func dealCancel(order *model.Order, book *model.OrderBook) {
 	// 撤单直接删除redis，从交易委托账本里面移除
-	var result, eResult, cres bool
+	var bResult, eResult, crResult, caResult  bool
 	// 从缓存取出订单
 	newOrder := cache.GetOrder(order.Symbol, order.OrderId, enum.ActionCreate.String())
-	// 先删除账本里面的，这里买单如果传action=1，side=1的话，就不会删除账本里的，然后就会出问题
-	if order.Side == enum.SideBuy {
-		result = book.RemoveBuyOrder(&newOrder)
+	// 先删除账本里面的，这里买单如果传action=1，side=1的话，就不会删除账本里的，然后就会出问题，所以优化成取缓存中的订单信息
+	if newOrder.Side == enum.SideBuy {
+		bResult = book.RemoveBuyOrder(&newOrder)
 		// 删除element账本中该头部订单
 		eResult = book.RemoveBuyElementOrder(&newOrder)
 	} else {
-		result = book.RemoveSellOrder(&newOrder)
+		bResult = book.RemoveSellOrder(&newOrder)
 		// 删除element账本中该头部订单
 		eResult = book.RemoveSellElementOrder(&newOrder)
 	}
-	if result == true {
+	// 删除缓存中的create订单
+	crResult = cache.RemoveOrder(newOrder)
+	// 删除缓存中的cancel订单
+	caResult = cache.RemoveOrder(*order)
+
+	// 判断打印
+	if crResult == true {
+		common.Debugs(fmt.Sprintf("create订单缓存删除成功：%s-%s", order.Symbol, order.OrderId))
+	} else {
+		common.Debugs(fmt.Sprintf("create订单缓存删除失败：%s-%s", order.Symbol, order.OrderId))
+	}
+	if caResult == true {
+		common.Debugs(fmt.Sprintf("cancel订单缓存删除成功：%s-%s", order.Symbol, order.OrderId))
+	} else {
+		common.Debugs(fmt.Sprintf("cancel订单缓存删除失败：%s-%s", order.Symbol, order.OrderId))
+	}
+	if bResult == true {
 		common.Debugs(fmt.Sprintf("交易委托账本中的订单删除成功！%s-%s", order.Symbol, order.OrderId))
 	} else {
 		log.Error(fmt.Sprintf("交易委托账本中的订单删除失败！%s-%s", order.Symbol, order.OrderId))
@@ -250,23 +284,28 @@ func dealCancel(order *model.Order, book *model.OrderBook) {
 		log.Error(fmt.Sprintf("TopN数据中的订单删除失败！%s-%s", order.Symbol, order.OrderId))
 	}
 
-	// 缓存删除状态
-	cres = cache.RemoveOrder(newOrder)
-	if cres == true {
-		common.Debugs(fmt.Sprintf("订单缓存删除成功：%s-%s", order.Symbol, order.OrderId))
-	} else {
-		common.Debugs(fmt.Sprintf("订单缓存删除失败：%s-%s", order.Symbol, order.OrderId))
-	}
-
 	// 账本和缓存都删除成功了才算撤单成功
-	if result == true && cres == true && eResult == true {
-		// 删除缓存中的cancel订单
-		cache.RemoveOrder(*order)
+	if bResult == true && eResult == true && caResult == true && crResult == true {
 		mq.SendCancelResult(order.Symbol, order.OrderId, true)
 	} else {
+		// 如果失败了就开始回滚
+		if bResult == false {
+			if newOrder.Side == enum.SideBuy {
+				book.AddBuyOrder(&newOrder)
+			} else {
+				book.AddSellOrder(&newOrder)
+			}
+		}
+
 		mq.SendCancelResult(order.Symbol, order.OrderId, false)
 	}
 
+	// 更新存量
+	//if order.Side == enum.SideBuy {
+	//	AllOrderAmountMap[enum.SideBuy.String()] = AllOrderAmountMap[enum.SideBuy.String()].Sub(order.Amount)
+	//} else {
+	//	AllOrderAmountMap[enum.SideSell.String()] = AllOrderAmountMap[enum.SideSell.String()].Sub(order.Amount)
+	//}
 }
 
 // Dispatch 分发订单
@@ -292,6 +331,7 @@ func Dispatch(order model.Order) error {
 	}
 
 	order.Timestamp = time.Now().UnixMicro()
+	// 调试撤单，先注释
 	cache.SaveOrder(order)
 	OrderChanMap[order.Symbol] <- order
 

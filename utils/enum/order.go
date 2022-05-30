@@ -60,6 +60,13 @@ func (o OrderType) String() string {
 	}
 }
 
+func (o OrderType) Valid() bool {
+	if o.String() == "unknown" {
+		return false
+	}
+	return true
+}
+
 func (o OrderSide) String() string {
 	switch o {
 	case SideBuy:
@@ -69,4 +76,11 @@ func (o OrderSide) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+func (o OrderSide) Valid() bool {
+	if o.String() == "unknown" {
+		return false
+	}
+	return true
 }

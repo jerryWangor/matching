@@ -5,7 +5,6 @@ import (
 	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/common"
-	"strconv"
 	"time"
 )
 
@@ -17,25 +16,17 @@ func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, nu
 	data := make(map[string]interface{})
 	fprice, _ := price.Float64()
 	buyList := book.GetBuyTopN(fprice, num)
-	//fmt.Println("买单数量", buyList.Len())
 	if buyList.Len() >0 {
 		for e := buyList.Front(); e != nil; e = e.Next() {
 			topData := e.Value.(model.PriceTopN)
-			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
-			data[sprice] = topData.Amount
+			data[topData.Price.String()] = common.ToJson(topData)
 		}
-	}
-	// 判断当前价格是否在data中
-	nowPrice := price.String()
-	if _, ok := data[nowPrice]; !ok {
-		data[nowPrice] = 0.0
 	}
 	sellList := book.GetSellTopN(fprice, num)
 	if sellList.Len() >0 {
 		for e := sellList.Front(); e != nil; e = e.Next() {
 			topData := e.Value.(model.PriceTopN)
-			sprice := strconv.FormatFloat(topData.Price, 'E', -1, 64)
-			data[sprice] = topData.Amount
+			data[topData.Price.String()] = common.ToJson(topData)
 		}
 	}
 

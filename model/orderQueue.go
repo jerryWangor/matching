@@ -2,6 +2,7 @@ package model
 
 import (
 	"container/list"
+	"github.com/shopspring/decimal"
 	"matching/utils/common"
 	"matching/utils/enum"
 	"sort"
@@ -106,48 +107,79 @@ func (q *orderQueue) getHeadOrder() *Order {
 }
 
 // 删除头部订单
-func (q *orderQueue) popHeadOrder() *Order {
+func (q *orderQueue) popHeadOrder() bool {
+
+	var result = false
 	front := q.parentList.Front()
 	if front != nil {
 		// 从交易委托账本中删除
-		return q.parentList.Remove(front).(*Order)
+		order := q.parentList.Remove(front).(*Order)
+		if order == nil {
+			common.Errors("交易委托账本头部订单删除失败:" + common.ToJson(order))
+		} else {
+			result = true
+		}
+		//if order != nil {
+		//	result = q.removeElementOrder(order)
+		//} else {
+		//	common.Errors("交易委托账本头部订单删除失败:" + common.ToJson(order))
+		//}
 	}
-	return nil
+
+	return result
 }
 
 // 更新头部订单
 func (q *orderQueue) updateHeadOrder(order *Order) error {
 	// 先删除头部订单，在插入
 	popOrder := q.popHeadOrder()
-	if popOrder == nil {
+	if popOrder == false {
 		return common.Errors("头部订单删除失败")
 	}
 	nowOrder := q.parentList.PushFront(order)
 	if nowOrder == nil {
-		return common.Errors("头部订单更新失败")
+		return common.Errors("头部订单插入失败")
 	}
+
+	// 更新element
+	//result := q.updateElementOrder(order)
+	//if result != true {
+	//	return common.Errors("element订单更新失败")
+	//}
 
 	return nil
 }
 
 // 删除指定订单
 func (q *orderQueue) removeOrder(order *Order) bool {
+	var result = false
 	// 循环链表，找到订单并删除
 	for e := q.parentList.Front(); e != nil; e = e.Next() {
 		orderId := e.Value.(*Order).OrderId
 		if orderId == order.OrderId {
 			q.parentList.Remove(e)
-			return true
+			result = true
 		}
 	}
-	return false
+
+	// 删除element
+	//result = q.removeElementOrder(order)
+
+	return result
 }
 
 // 展示所有订单
 func (q *orderQueue) showAllOrder() {
-	for e := q.parentList.Front(); e != nil; e = e.Next() {
-		order := e.Value.(*Order)
-		common.Debugs(common.ToJson(order))
+	if q.sortBy == enum.SortDesc {
+		for e := q.parentList.Front(); e != nil; e = e.Next() {
+			order := e.Value.(*Order)
+			common.Debugs(common.ToJson(order))
+		}
+	} else {
+		for e := q.parentList.Back(); e != nil; e = e.Prev() {
+			order := e.Value.(*Order)
+			common.Debugs(common.ToJson(order))
+		}
 	}
 }
 
@@ -171,6 +203,7 @@ func (q *orderQueue) removeElementOrder(order *Order) bool {
 	orderId := order.OrderId
 	// 判断是否在map中
 	if _, ok := q.elementMap[price][orderId]; !ok {
+		common.Errors("要删除的订单不在element账本中:" + common.ToJson(order))
 		return false
 	}
 
@@ -216,8 +249,9 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 					amount += a
 				}
 				sTopN := PriceTopN{
-					Price: v,
-					Amount: amount,
+					Side: enum.SideBuy,
+					Price: decimal.NewFromFloat(v),
+					Amount: decimal.NewFromFloat(amount),
 				}
 				topMap.PushBack(sTopN)
 			}
@@ -231,8 +265,9 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 					amount += a
 				}
 				sTopN := PriceTopN{
-					Price: v,
-					Amount: amount,
+					Side: enum.SideSell,
+					Price: decimal.NewFromFloat(v),
+					Amount: decimal.NewFromFloat(amount),
 				}
 				//fmt.Println("卖单数据：", sTopN.Price, sTopN.Amount)
 				topMap.PushBack(sTopN)

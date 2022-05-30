@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/shopspring/decimal"
 	"matching/model"
 	"matching/utils/cache"
 	"matching/utils/log"
@@ -16,8 +17,15 @@ var StopKDataChan chan bool
 
 var KDataPriceMap map[string]*model.KDataPrice
 
+// Test相关
+var AllOrderAmountMap map[string]decimal.Decimal // 用于记录接收到的买单和卖单数量，撮合会更新
+
 // Init 初始化，从redis中恢复一些东西
 func Init() {
+
+	AllOrderAmountMap = make(map[string]decimal.Decimal)
+	AllOrderAmountMap["buy"] = decimal.NewFromFloat(0)
+	AllOrderAmountMap["sell"] = decimal.NewFromFloat(0)
 
 	// 定义订单map通道
 	OrderChanMap = make(map[string]chan model.Order)

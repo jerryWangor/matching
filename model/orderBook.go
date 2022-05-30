@@ -38,12 +38,12 @@ func (o *OrderBook) GetHeadSellOrder() *Order {
 }
 
 // PopHeadBuyOrder 抛出头部买单（删除）
-func (o *OrderBook) PopHeadBuyOrder() *Order {
+func (o *OrderBook) PopHeadBuyOrder() bool {
 	return o.buyOrderQueue.popHeadOrder()
 }
 
 // PopHeadSellOrder 抛出头部卖单（删除）
-func (o *OrderBook) PopHeadSellOrder() *Order {
+func (o *OrderBook) PopHeadSellOrder() bool {
 	return o.sellOrderQueue.popHeadOrder()
 }
 

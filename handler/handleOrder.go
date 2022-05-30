@@ -53,6 +53,39 @@ func HandleOrder(c *gin.Context) {
 		return
 	}
 
+	// 判断Action
+	if !hOrder.Action.Valid() {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_ACTION_ERROR, "msg": "action error"})
+		return
+	}
+
+	// 判断type
+	if !hOrder.Type.Valid() {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_TYPE_ERROR, "msg": "type error"})
+		return
+	}
+
+	// 判断side
+	if !hOrder.Side.Valid() {
+		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_SIDE_ERROR, "msg": "side error"})
+		return
+	}
+
+	// 挂单判断
+	if hOrder.Action.String() == enum.ActionCreate.String() {
+		// 买单和卖单的价格不能为0
+		if hOrder.Price.IsZero() {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_PRICE_ISZERO, "msg": "价格不能为0"})
+			return
+		}
+
+		// 买单和卖单的数量不能为0
+		if hOrder.Amount.IsZero() {
+			c.JSON(http.StatusOK, gin.H{"code": code.HTTP_ORDER_HANDLE_AMOUNT_ISZERO, "msg": "数量不能为0"})
+			return
+		}
+	}
+
 	// 判断该交易标引擎是否开启，从redis缓存中查询
 	if !cache.HasSymbol(hOrder.Symbol) {
 		c.JSON(http.StatusOK, gin.H{"code": code.HTTP_SYMBOL_MATCHINIG_OPEN_REPEAT, "msg": "交易标引擎未启动"})
