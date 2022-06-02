@@ -11,24 +11,32 @@ import (
 // 重新生成topN，保存redis
 func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, num int) {
 
-	//fmt.Println("分割线")
 	// topN从elementMap来
 	data := make(map[string]interface{})
 	fprice, _ := price.Float64()
+	//fmt.Println("分割线", fprice)
+	buyData := make([]model.PriceTopN, 0)
 	buyList := book.GetBuyTopN(fprice, num)
 	if buyList.Len() >0 {
 		for e := buyList.Front(); e != nil; e = e.Next() {
 			topData := e.Value.(model.PriceTopN)
-			data[topData.Price.String()] = common.ToJson(topData)
+			buyData = append(buyData, topData)
+			//data[topData.Price.String()] = topData
 		}
 	}
+	data["buy"] = buyData
+
+	sellData := make([]model.PriceTopN, 0)
 	sellList := book.GetSellTopN(fprice, num)
 	if sellList.Len() >0 {
 		for e := sellList.Front(); e != nil; e = e.Next() {
 			topData := e.Value.(model.PriceTopN)
-			data[topData.Price.String()] = common.ToJson(topData)
+			sellData = append(sellData, topData)
 		}
 	}
+	data["sell"] = sellData
+
+	data["now"] = KDataPriceMap[symbol].NowPrice.String()
 
 	//fmt.Println("topdata", data)
 	cache.SetTopN(symbol, num, data)

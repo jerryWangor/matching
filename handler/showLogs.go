@@ -96,6 +96,8 @@ func ShowLogs(c *gin.Context) {
 			}
 		}
 
+
+
 		common.Debugs("-------------------------")
 		common.Debugs("买单TopN数据：")
 		buyElementMap := v.GetBuyElementMap()
@@ -140,6 +142,8 @@ func ShowLogs(c *gin.Context) {
 	//common.Debugs("买单存量：" + engine.AllOrderAmountMap[enum.SideBuy.String()].String())
 	//common.Debugs("卖单存量：" + engine.AllOrderAmountMap[enum.SideSell.String()].String())
 	//common.Debugs("----------End 订单数量存量----------")
+
+
 
 }
 
