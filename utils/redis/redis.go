@@ -184,7 +184,7 @@ func SendCancelResult(symbol, orderId string, ok bool) {
 	values := map[string]interface{}{"orderId": orderId, "ok": ok}
 	a := &redis.XAddArgs{
 		Stream:       "matching:cancelresults:" + symbol,
-		MaxLenApprox: 1000,
+		MaxLenApprox: 10000,
 		Values:       values,
 	}
 	redisClient.XAdd(a)
@@ -193,7 +193,7 @@ func SendCancelResult(symbol, orderId string, ok bool) {
 func SendTrade(symbol string, trade map[string]interface{}) {
 	a := &redis.XAddArgs{
 		Stream:       "matching:trades:" + symbol,
-		MaxLenApprox: 1000,
+		MaxLenApprox: 10000,
 		Values:       trade,
 	}
 	redisClient.XAdd(a)

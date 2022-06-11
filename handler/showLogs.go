@@ -123,7 +123,7 @@ func ShowLogs(c *gin.Context) {
 	common.Debugs("----------Start TopN  K线图----------")
 	for _, v := range symbols {
 		common.Debugs("Top100：")
-		topMap := cache.GetTopN(v, 100)
+		topMap := cache.GetTopN(v, 5)
 		common.Debugs(common.ToJson(topMap))
 
 		// 取最近10分钟的k线图

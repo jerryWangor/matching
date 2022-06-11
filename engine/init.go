@@ -57,4 +57,7 @@ func Init() {
 		}
 	}
 
+	// 开启kdata线程
+	runKData()
+
 }

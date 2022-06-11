@@ -21,7 +21,6 @@ func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, nu
 		for e := buyList.Front(); e != nil; e = e.Next() {
 			topData := e.Value.(model.PriceTopN)
 			buyData = append(buyData, topData)
-			//data[topData.Price.String()] = topData
 		}
 	}
 	data["buy"] = buyData
@@ -29,7 +28,7 @@ func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, nu
 	sellData := make([]model.PriceTopN, 0)
 	sellList := book.GetSellTopN(fprice, num)
 	if sellList.Len() >0 {
-		for e := sellList.Front(); e != nil; e = e.Next() {
+		for e := sellList.Back(); e != nil; e = e.Prev() {
 			topData := e.Value.(model.PriceTopN)
 			sellData = append(sellData, topData)
 		}
@@ -43,25 +42,29 @@ func handleTopN(symbol string, price *decimal.Decimal, book *model.OrderBook, nu
 }
 
 // 生成k线图，1分钟生成一次
-func handleKData(symbol string, kDataPrice *model.KDataPrice) {
+func handleKData(data *map[string]*model.KDataPrice) {
 	defer func() { recover() }()
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			common.Debugs("开始计算K线图")
 			currentSecond := time.Now().Second()
 			timestamp := time.Now().Unix() - int64(currentSecond)
-			// 取出当前的实时价格
-			kData := model.KData{
-				TopPrice: kDataPrice.TopPrice,
-				BottomPrice: kDataPrice.BottomPrice,
-				NowPrice: kDataPrice.NowPrice,
-				Timestamp: timestamp,
+
+			for k, v := range *data {
+				common.Debugs("开始计算K线图：" + k)
+
+				// 取出当前的实时价格
+				kData := model.KData{
+					TopPrice: v.TopPrice,
+					BottomPrice: v.BottomPrice,
+					NowPrice: v.NowPrice,
+					Timestamp: timestamp,
+				}
+				kDataJson := common.ToJson(kData)
+				cache.SetKData(k, timestamp, kDataJson)
 			}
-			kDataJson := common.ToJson(kData)
-			cache.SetKData(symbol, timestamp, kDataJson)
 
 		case <-StopKDataChan:
 			common.Debugs("K线图计算线程关闭")

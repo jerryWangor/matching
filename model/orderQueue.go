@@ -234,14 +234,14 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 	}
 	// 循环keys，找到当前价格的N档
 	//fmt.Println("keys", keys, nowPrice)
+	id := 1
 	for _, v := range keys {
-		num--
-		if num < 0 {
+		if num <= 0 {
 			break
 		}
 		if q.sortBy == enum.SortDesc {
 			// 买单判断小于
-			if v <= nowPrice {
+			//if v <= nowPrice {
 				// 循环所有订单，把数量相加
 				amount := 0.0
 				for _, val := range q.elementMap[v] {
@@ -249,15 +249,16 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 					amount += a
 				}
 				sTopN := PriceTopN{
+					Id: id,
 					Side: enum.SideBuy,
 					Price: decimal.NewFromFloat(v),
 					Amount: decimal.NewFromFloat(amount),
 				}
 				topMap.PushBack(sTopN)
-			}
+			//}
 		} else {
 			// 卖单判断大于
-			if v >= nowPrice {
+			//if v >= nowPrice {
 				// 循环所有订单，把数量相加
 				amount := 0.0
 				for _, val := range q.elementMap[v] {
@@ -265,14 +266,17 @@ func (q *orderQueue) getTopN(nowPrice float64, num int) *list.List {
 					amount += a
 				}
 				sTopN := PriceTopN{
+					Id: id,
 					Side: enum.SideSell,
 					Price: decimal.NewFromFloat(v),
 					Amount: decimal.NewFromFloat(amount),
 				}
 				//fmt.Println("卖单数据：", sTopN.Price, sTopN.Amount)
 				topMap.PushBack(sTopN)
-			}
+			//}
 		}
+		num--
+		id++
 	}
 	return topMap
 }

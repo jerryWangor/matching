@@ -11,6 +11,7 @@ type TimeSign struct {
 }
 
 type PriceTopN struct {
+	Id int `form:"id" json:"id" comment:"排序"`
 	Side enum.OrderSide `form:"side" json:"side" comment:"买/卖"`
 	Price decimal.Decimal `form:"price" json:"price" comment:"价格"`
 	Amount decimal.Decimal `form:"amount" json:"amount" comment:"数量"`

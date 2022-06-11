@@ -25,9 +25,6 @@ func NewEngine(symbol string, price decimal.Decimal) error {
 	cache.SaveSymbol(symbol)
 	cache.SavePrice(symbol, price)
 
-	// k线图
-	go handleKData(symbol, KDataPriceMap[symbol])
-
 	return nil
 }
 
@@ -79,8 +76,13 @@ func Run(symbol string, price decimal.Decimal) {
 		}
 
 		// top先同步进行处理，后期可以考虑用通道异步处理
-		handleTopN(symbol, &KDataPriceMap[symbol].NowPrice, book, 100)
+		handleTopN(symbol, &KDataPriceMap[symbol].NowPrice, book, 5)
 	}
+}
+
+func runKData() {
+	// k线图
+	go handleKData(&KDataPriceMap)
 }
 
 // 挂单处理
