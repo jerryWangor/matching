@@ -154,5 +154,10 @@ func RandInt64(min, max int64) int64 {
 		result, _ := rand.Int(rand.Reader, big.NewInt(max-min+1))
 		return min + result.Int64()
 	}
+}
 
+// Abs 整数绝对值
+func Abs(n int64) int64 {
+	y := n >> 63
+	return (n ^ y) - y
 }
